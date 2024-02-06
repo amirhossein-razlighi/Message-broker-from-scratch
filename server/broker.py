@@ -2,11 +2,18 @@ import queue
 import asyncio
 import socket
 import json
+import fastapi
+import argparse
+
+app = None
 
 class Broker:
-    def __init__(self):
+    def __init__(self, host, port):
         self._queue = queue.Queue()
         self._replica_queue = queue.Queue()
+        self._app = app
+        self._host = host
+        self._port = port
 
     def publish(self, data):
         self._queue.put(data)
@@ -49,10 +56,14 @@ class Broker:
             await self.push(json_dict, writer)
             self.print_queue()
 
+    async def read_root(self):
+        return {"Hello": "World"}
+    
+    async def get_zookeeper(self):
+        return {"zookeeper": "zookeeper"}
 
     async def main(self):
-        server = await asyncio.start_server(
-            self.handle_client, '127.0.0.1', 8888)
+        server = await asyncio.start_server(self.handle_client, self._host, self._port)
 
         addr = server.sockets[0].getsockname()
         print(f'Serving on {addr}')
@@ -61,5 +72,16 @@ class Broker:
             await server.serve_forever()
 
 if __name__ == '__main__':
-  broker = Broker()
-  asyncio.run(broker.main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+    parser.add_argument("--port", default=8888, help="Port to bind to")
+    args = parser.parse_args()
+    print(args.host, args.port)
+    app = fastapi.FastAPI(port=args.port, host=args.host)
+
+    broker = Broker(args.host, args.port)
+
+    app.add_api_route("/", broker.read_root, methods=["GET"])
+    app.add_api_route("/zookeeper", broker.get_zookeeper, methods=["GET"])
+
+    asyncio.run(broker.main())

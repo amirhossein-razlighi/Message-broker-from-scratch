@@ -1,4 +1,6 @@
 from broker import Broker
+import fastapi
+import asyncio
 
 class ZooKeeper(Broker):
     def __init__(self):
