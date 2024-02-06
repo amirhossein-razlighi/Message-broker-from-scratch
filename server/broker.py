@@ -79,12 +79,13 @@ class Broker:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
-    parser.add_argument("--port", default=8888, help="Port to bind to")
+    parser.add_argument("--socket_port", default=8000, help="Port to bind socket connection to")
+    parser.add_argument("--http_port", default=8888, help="Port to bind https connection to")
     args = parser.parse_args()
-    print(args.host, args.port)
-    app = fastapi.FastAPI(port=args.port, host=args.host)
+    print(args.host, args.socket_port, args.http_port)
+    app = fastapi.FastAPI(port=args.http_port, host=args.host)
 
-    broker = Broker(args.host, args.port)
+    broker = Broker(args.host, args.socket_port)
 
     app.add_api_route("/", broker.read_root, methods=["GET"])
     app.add_api_route("/zookeeper", broker.get_zookeeper, methods=["GET"])
@@ -92,7 +93,7 @@ if __name__ == '__main__':
     broker_thread = threading.Thread(target=asyncio.run, args=(broker.main(),))
     broker_thread.start()
 
-    uvicorn.run(app, host=args.host, port=8888)
+    uvicorn.run(app, host=args.host, port=args.http_port)
 
     broker_thread.join()
     broker_thread.close()
