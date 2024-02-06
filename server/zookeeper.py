@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import random
 
 from broker import Broker
 
@@ -29,10 +30,20 @@ class ZooKeeper(Broker):
         print(f"Broker {broker.id} added at position {position} in partition {partition}")
 
         if replica is not None:
-            self.add_replica(broker, replica)
+            self.add_replica(broker)
 
-    def add_replica(self, partition):
+    def add_replica(self, broker):
         new_broker = Broker()
+
+        original_partition = self._broker_partitions[broker]
+
+        other_partitions = [p for p in self._partitions if p != original_partition]
+
+        if not other_partitions:
+            print("No other partitions available to add the replica.")
+            return
+
+        partition = random.choice(other_partitions)
 
         if partition not in self._partitions:
             self._partitions[partition] = []
@@ -57,7 +68,7 @@ class ZooKeeper(Broker):
             await server.serve_forever()
 
 
-
+"""
 if __name__ == '__main__':
     zookeeper = ZooKeeper()
     broker1 = Broker()
@@ -72,10 +83,14 @@ if __name__ == '__main__':
     zookeeper = ZooKeeper()
 
     # Add multiple brokers to different partitions
-    for i in range(5):
-        broker = Broker()
+    brokers = [Broker() for _ in range(5)]
+    for i, broker in enumerate(brokers):
         partition = f'partition{i}'
         zookeeper.add_broker(broker, partition)
+
+    # Add a replica for each broker
+    for broker in brokers:
+        zookeeper.add_replica(broker)
 
     # Print out the brokers list
     print("Brokers List:")
@@ -88,4 +103,3 @@ if __name__ == '__main__':
         print(f"Partition: {partition}")
         for broker in brokers:
             print(f"Broker ID: {broker.id}")
-"""
