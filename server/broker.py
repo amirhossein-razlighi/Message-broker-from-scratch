@@ -6,6 +6,7 @@ import json
 class Broker:
     def __init__(self):
         self._queue = queue.Queue()
+        self._replica_queue = queue.Queue()
 
     def publish(self, data):
         self._queue.put(data)
@@ -47,8 +48,6 @@ class Broker:
         if json_dict["type"] == "PUSH":
             await self.push(json_dict, writer)
             self.print_queue()
-        else:
-          print("SAG")
 
 
     async def main(self):
