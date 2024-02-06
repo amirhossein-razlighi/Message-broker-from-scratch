@@ -12,12 +12,38 @@ class Broker:
     def consume(self):
         return self._queue.get()
 
+    def extract_message(self, message):
+      statements = message.split(",")
+      json_dict = {}
+      for statement in statements:
+          key, value = statement.split(":")
+          key = key.split('"')[1]
+          value = value.split('"')[1]
+          json_dict[key] = value
+      return json_dict
+
     async def handle_client(self, reader, writer):
         data = await reader.read(100)
         message = data.decode()
+        message = message[1:-2]
         addr = writer.get_extra_info('peername')
-        print(f"Received {message!r} from {addr!r}")
-        
+        print(f"Received {message} from {addr} with type {type(message)}")
+        print("hi")
+        json_dict = self.extract_message(message)
+        print(json_dict)
+        print(json_dict.keys())
+        print(json_dict.values())
+
+        if json_dict["type"] == "PUSH":
+            # self.publish(json_message)
+            print("Published message")
+            response = {"status": "OK", "message": "Message received"}
+            writer.write(b'Salam')
+            await writer.drain()
+        else:
+          print("SAG")
+
+
     async def main(self):
         server = await asyncio.start_server(
             self.handle_client, '127.0.0.1', 8888)
