@@ -78,26 +78,21 @@ if __name__ == '__main__':
     zookeeper.add_broker(broker2, 'partition3')
     asyncio.run(zookeeper.main())
 """
-# working test
 if __name__ == '__main__':
     zookeeper = ZooKeeper()
 
-    # Add multiple brokers to different partitions
     brokers = [Broker() for _ in range(5)]
     for i, broker in enumerate(brokers):
         partition = f'partition{i}'
         zookeeper.add_broker(broker, partition)
 
-    # Add a replica for each broker
     for broker in brokers:
         zookeeper.add_replica(broker)
 
-    # Print out the brokers list
     print("Brokers List:")
     for position, broker in zookeeper._broker_list:
         print(f"Broker ID: {broker.id}, Position: {position}")
 
-    # Print out the partitions dictionary
     print("\nPartitions Dictionary:")
     for partition, brokers in zookeeper._partitions.items():
         print(f"Partition: {partition}")
