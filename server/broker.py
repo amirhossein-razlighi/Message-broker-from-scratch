@@ -2,11 +2,12 @@ import queue
 import asyncio
 import socket
 import json
+import uuid
 
 class Broker:
     def __init__(self):
+        self.id = str(uuid.uuid4())
         self._queue = queue.Queue()
-        self._replica_queue = queue.Queue()
 
     def publish(self, data):
         self._queue.put(data)
