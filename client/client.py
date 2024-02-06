@@ -38,7 +38,7 @@ def push_message(key: str, value: str):
         # TODO return error
         return None
     message = {
-        "command": "push",
+        "type": "PUSH",
         "key": key,
         "value": value
     }
@@ -83,3 +83,6 @@ def main():
         push_message("Hello", "world")
         sleep(30)
     # client_socket.close()
+
+if __name__ == "__main__":
+    main()
