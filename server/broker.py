@@ -1,6 +1,7 @@
 import queue
 import asyncio
 import socket
+import json
 
 class Broker:
     def __init__(self):
@@ -28,17 +29,16 @@ class Broker:
         message = message[1:-2]
         addr = writer.get_extra_info('peername')
         print(f"Received {message} from {addr} with type {type(message)}")
-        print("hi")
         json_dict = self.extract_message(message)
         print(json_dict)
         print(json_dict.keys())
         print(json_dict.values())
 
         if json_dict["type"] == "PUSH":
-            # self.publish(json_message)
+            self.publish(json_dict)
             print("Published message")
             response = {"status": "OK", "message": "Message received"}
-            writer.write(b'Salam')
+            writer.write(json.dumps(response).encode())
             await writer.drain()
         else:
           print("SAG")
