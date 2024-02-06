@@ -32,7 +32,7 @@ def open_connection(node_ip, node_port):
     return new_socket
 
 
-# push message to server -> post
+# push message to server
 def push_message(key: str, value: str):
     if client_socket is None:
         # TODO return error
@@ -48,7 +48,7 @@ def push_message(key: str, value: str):
     print(f"Received from server: {data}")
 
 
-# pull message from server -> get
+# pull message from server
 def pull_message():
     if client_socket is None:
         # TODO return error
@@ -82,7 +82,9 @@ def main():
 
         push_message("Hello", "world")
         sleep(30)
-    # client_socket.close()
+
+    client_socket.close()
+
 
 if __name__ == "__main__":
     main()
