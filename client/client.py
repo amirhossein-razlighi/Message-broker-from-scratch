@@ -15,7 +15,7 @@ client_subscribe_socket = None
 # find the master zookeeper
 def find_master():
     for ip in zookeeper_ips:
-        response = requests.get(f"http://{ip}/master")
+        response = requests.get(f"{ip}/master")
         if response.status_code == 200:
             return ip
     return None
@@ -69,7 +69,8 @@ def subscribe(f: Callable):
 
 
 def main():
-    # global master_ip
+    global client_socket
+    global master_ip
     # master_ip = find_master()
     # if master_ip is None:
     #     print("No master found")
