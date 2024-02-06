@@ -2,6 +2,7 @@ import requests
 import json
 import socket
 from time import sleep
+from typing import Callable
 
 # zookeeper ips
 zookeeper_ips = ["127.0.0.1"]
@@ -62,9 +63,9 @@ def pull_message():
 
 
 # subscribe to server
-def subscribe(f: function):
+def subscribe(f: Callable):
     client_subscribe_socket = open_connection("127.0.0.1", port)
-
+    # TODO: complete later
 
 
 def main():
@@ -77,7 +78,7 @@ def main():
         client_socket = open_connection("127.0.0.1", port)
         if client_socket is None:
             print("Error occured")
-            
+
         push_message("Hello", "world")
         sleep(30)
     # client_socket.close()
