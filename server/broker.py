@@ -23,6 +23,16 @@ class Broker:
           json_dict[key] = value
       return json_dict
 
+    def print_queue(self):
+        print(self._queue.queue)
+    
+    async def push(self, json_dict, writer):
+        self.publish(json_dict)
+        print("Published message")
+        response = {"status": "OK", "message": "Message received"}
+        writer.write(json.dumps(response).encode())
+        await writer.drain()
+
     async def handle_client(self, reader, writer):
         data = await reader.read(100)
         message = data.decode()
@@ -35,11 +45,8 @@ class Broker:
         print(json_dict.values())
 
         if json_dict["type"] == "PUSH":
-            self.publish(json_dict)
-            print("Published message")
-            response = {"status": "OK", "message": "Message received"}
-            writer.write(json.dumps(response).encode())
-            await writer.drain()
+            await self.push(json_dict, writer)
+            self.print_queue()
         else:
           print("SAG")
 
