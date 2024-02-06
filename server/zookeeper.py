@@ -1,4 +1,6 @@
 from broker import Broker
+import asyncio
+
 
 class ZooKeeper(Broker):
     def __init__(self):
@@ -22,9 +24,9 @@ class ZooKeeper(Broker):
         async with server:
             await server.serve_forever()
 
+
 if __name__ == '__main__':
     zookeeper = ZooKeeper()
-    broker = Broker()
+    broker = Broker(1)
     zookeeper.add_broker(broker)
     asyncio.run(zookeeper.main())
-    
