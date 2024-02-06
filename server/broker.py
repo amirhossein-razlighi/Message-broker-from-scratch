@@ -4,6 +4,8 @@ import socket
 import json
 import fastapi
 import argparse
+import uvicorn
+import threading
 
 app = None
 
@@ -57,13 +59,16 @@ class Broker:
             self.print_queue()
 
     async def read_root(self):
-        return {"Hello": "World"}
+        print("Hello")
+        return fastapi.Response(content="Hello, World", status_code=200)
     
     async def get_zookeeper(self):
+        print("Zookeeper")
         return {"zookeeper": "zookeeper"}
 
     async def main(self):
-        server = await asyncio.start_server(self.handle_client, self._host, self._port)
+        server = await asyncio.start_server(
+            self.handle_client, self._host, self._port)
 
         addr = server.sockets[0].getsockname()
         print(f'Serving on {addr}')
@@ -83,5 +88,11 @@ if __name__ == '__main__':
 
     app.add_api_route("/", broker.read_root, methods=["GET"])
     app.add_api_route("/zookeeper", broker.get_zookeeper, methods=["GET"])
+    
+    broker_thread = threading.Thread(target=asyncio.run, args=(broker.main(),))
+    broker_thread.start()
 
-    asyncio.run(broker.main())
+    uvicorn.run(app, host=args.host, port=8888)
+
+    broker_thread.join()
+    broker_thread.close()
