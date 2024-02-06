@@ -38,9 +38,9 @@ def push_message(key: str, value: str):
         # TODO return error
         return None
     message = {
-        "command": "push",
+        "type": "PUSH",
         "key": key,
-        "value": value
+        "value": value,
     }
 
     client_socket.send(json.dumps(message).encode())
@@ -69,6 +69,7 @@ def subscribe(f: Callable):
 
 
 def main():
+    global client_socket
     # global master_ip
     # master_ip = find_master()
     # if master_ip is None:
@@ -82,3 +83,6 @@ def main():
         push_message("Hello", "world")
         sleep(30)
     # client_socket.close()
+
+if __name__ == "__main__":
+    main()
