@@ -18,6 +18,7 @@ class ZooKeeper(Broker):
         self._partitions = {}
         self._broker_partitions = {}
         self.global_subscribers = []
+        self._current_broker_index = 0 # Used for round-robin
 
     def add_broker(self, broker, partition, replica=None):
         position = hash_function(broker.id)
@@ -63,9 +64,11 @@ class ZooKeeper(Broker):
         return self._broker_list[0]
 
     def choose_broker_for_subscription(self, subscriber):
-        broker_id = random.choice(self._broker_list)
-        broker = [b for b in self._broker_list if b.id == broker_id]
-        broker.broker_subscribers.append(subscriber.get_extra_info('peername'))
+        broker = self._broker_list[self._current_broker_index][1]
+        broker_id = broker.id
+        self._current_broker_index = (self._current_broker_index + 1) % len(self._broker_list)
+        broker.broker_subscribers.append(subscriber)
+        print(f"Subscriber {subscriber} assigned to broker {broker.host}: {broker.socket_port}")
 
 
     # extend the handle_client function from broker to handle "SUBSCRIBE"
