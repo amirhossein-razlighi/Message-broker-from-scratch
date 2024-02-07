@@ -17,6 +17,7 @@ class ZooKeeper(Broker):
         self._broker_list = []
         self._partitions = {}
         self._broker_partitions = {}
+        self.global_subscribers = []
 
     def add_broker(self, broker, partition, replica=None):
         position = hash_function(broker.id)
@@ -61,6 +62,43 @@ class ZooKeeper(Broker):
     def get_broker(self):
         return self._broker_list[0]
 
+    def choose_broker_for_subscription(self, subscriber):
+        broker_id = random.choice(self._broker_list)
+        broker = [b for b in self._broker_list if b.id == broker_id]
+        broker.broker_subscribers.append(subscriber.get_extra_info('peername'))
+
+
+    # extend the handle_client function from broker to handle "SUBSCRIBE"
+    async def handle_client(self, reader, writer):
+        data = await reader.read(100)
+        message = data.decode()
+        addr = writer.get_extra_info('peername')
+        print(f"Received {message} from {addr}")
+
+        json_dict = self.extract_message(message)
+        if json_dict["type"] == "PUSH":
+            part_no = json_dict["part_no"]
+            if part_no not in self._pqueues:
+                # error no such queue
+                return "Invalid"
+            message = self._pqueues[part_no].write_new_message(json_dict["value"])
+            writer.write(message.encode())
+        elif json_dict["type"] == "PULL":
+            part_no = json_dict["part_no"]
+            if part_no not in self._pqueues:
+                # error no such queue
+                return "Invalid"
+            message = self._read(part_no)
+            writer.write(message.encode())
+        elif json_dict["type"] == "SUBSCRIBE":
+            self.global_subscribers.append(writer)
+            self.choose_broker_for_subscription(writer)
+            writer.write("Subscribed".encode())
+        else:
+            writer.write("Invalid".encode())
+
+        
+    # This can be removed, due to inheritance from Broker
     async def main(self):
         server = await asyncio.start_server(self.handle_client, self._host, self._port)
         addr = server.sockets[0].getsockname()

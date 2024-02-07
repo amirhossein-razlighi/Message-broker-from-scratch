@@ -19,6 +19,7 @@ class Broker:
         self._host = host
         self._port = port
         self._zookeeper = {"host": None, "http_port": None, "socket_port": None}
+        self.broker_subscribers = []
 
     def __init__(self, id):
         self.id = id
