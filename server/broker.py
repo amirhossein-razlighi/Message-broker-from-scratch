@@ -16,6 +16,7 @@ class Broker:
         self._app = app
         self._host = host
         self._port = port
+        self._zookeeper = {"host": None, "http_port": None, "socket_port": None}
 
     def publish(self, data):
         self._queue.put(data)
@@ -59,14 +60,12 @@ class Broker:
             self.print_queue()
 
     async def read_root(self):
-        print("Hello")
         return fastapi.Response(content="Hello, World", status_code=200)
     
     async def get_zookeeper(self):
-        print("Zookeeper")
-        return {"zookeeper": "zookeeper"}
+        return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
 
-    async def main(self):
+    async def socket_thread(self):
         server = await asyncio.start_server(
             self.handle_client, self._host, self._port)
 
@@ -75,6 +74,18 @@ class Broker:
 
         async with server:
             await server.serve_forever()
+    
+    def run(self, host, http_port, socket_port):
+        app = fastapi.FastAPI(port=http_port, host=host)
+
+        app.add_api_route("/", self.read_root, methods=["GET"])
+        app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
+
+        socket_thread = threading.Thread(target=asyncio.run, args=(self.socket_thread(),))
+        socket_thread.start()
+        http_thread = threading.Thread(target=asyncio.run, args=(uvicorn.run(app, host=host, port=http_port),))
+        http_thread.start()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -83,17 +94,6 @@ if __name__ == '__main__':
     parser.add_argument("--http_port", default=8888, help="Port to bind https connection to")
     args = parser.parse_args()
     print(args.host, args.socket_port, args.http_port)
-    app = fastapi.FastAPI(port=args.http_port, host=args.host)
 
     broker = Broker(args.host, args.socket_port)
-
-    app.add_api_route("/", broker.read_root, methods=["GET"])
-    app.add_api_route("/zookeeper", broker.get_zookeeper, methods=["GET"])
-    
-    broker_thread = threading.Thread(target=asyncio.run, args=(broker.main(),))
-    broker_thread.start()
-
-    uvicorn.run(app, host=args.host, port=args.http_port)
-
-    broker_thread.join()
-    broker_thread.close()
+    broker.run(args.host, args.http_port, args.socket_port)
