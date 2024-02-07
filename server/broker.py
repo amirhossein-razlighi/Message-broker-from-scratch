@@ -6,11 +6,13 @@ import fastapi
 import argparse
 import uvicorn
 import threading
+import uuid
 
 app = None
 
 class Broker:
     def __init__(self, host, port):
+        self.id = str(uuid.uuid4())
         self._queue = queue.Queue()
         self._replica_queue = queue.Queue()
         self._app = app
