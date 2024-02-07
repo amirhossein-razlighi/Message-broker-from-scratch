@@ -7,6 +7,9 @@ class Broker:
     def __init__(self):
         self._queue = queue.Queue()
         self._replica_queue = queue.Queue()
+        self.is_voting_member = False
+        self.next_ip = None
+        self.all_ips = []
 
     def publish(self, data):
         self._queue.put(data)
@@ -48,6 +51,9 @@ class Broker:
         if json_dict["type"] == "PUSH":
             await self.push(json_dict, writer)
             self.print_queue()
+
+
+
 
 
     async def main(self):
