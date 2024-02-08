@@ -1,4 +1,5 @@
 import asyncio
+import queue
 import socket
 import json
 import fastapi
@@ -10,19 +11,35 @@ from pqueue import Pqueue
 
 app = None
 
+
 class Broker:
     def __init__(self, host, port):
         self.id = str(uuid.uuid4())
+        self._pqueues = {}
         self._queue = queue.Queue()
         self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
         self._port = port
         self._zookeeper = {"host": None, "http_port": None, "socket_port": None}
+        self._observers = set()
+        self._is_replica = False
 
-    def __init__(self, id):
-        self.id = id
-        self._pqueues = {}
+    def __str__(self):
+        return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica}, observers={self._observers})"
+
+    def register(self, observer):
+        self._observers.add(observer)
+
+    def unregister(self, observer):
+        self._observers.remove(observer)
+
+    def notify(self, part_no, message):
+        print(f"Broker {self.id} notifying observers...")
+        for observer in self._observers:
+            if observer._is_replica and part_no in observer._pqueues:
+                print(f"Updating observer {observer.id}...")
+                observer.update(self, part_no, message)
 
     def _create_pqueue(self, part_no, is_replica):
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
@@ -53,6 +70,7 @@ class Broker:
                 # error no such queue
                 return "Invalid"
             message = self._pqueues[part_no].write_new_message(json_dict["value"])
+            self.notify(part_no, message)
             writer.write(message.encode())
         elif json_dict["type"] == "PULL":
             part_no = json_dict["part_no"]
@@ -66,10 +84,10 @@ class Broker:
         # await writer.drain()
         # print("Close the connection")
         # writer.close()
-    
+
     async def read_root(self):
         return fastapi.Response(content="Hello, World", status_code=200)
-    
+
     async def get_zookeeper(self):
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
 
@@ -82,7 +100,7 @@ class Broker:
 
         async with server:
             await server.serve_forever()
-    
+
     def run(self, host, http_port, socket_port):
         app = fastapi.FastAPI(port=http_port, host=host)
 
@@ -93,7 +111,6 @@ class Broker:
         socket_thread.start()
         http_thread = threading.Thread(target=asyncio.run, args=(uvicorn.run(app, host=host, port=http_port),))
         http_thread.start()
-
 
 
 if __name__ == '__main__':
