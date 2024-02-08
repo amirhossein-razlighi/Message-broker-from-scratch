@@ -6,7 +6,7 @@ from typing import Callable
 
 # zookeeper ips
 zookeeper_ips = ["127.0.0.1"]
-port = 8888
+port = 8000
 master_ip = None
 client_socket = None
 client_subscribe_socket = None
@@ -40,16 +40,17 @@ def push_message(key: str, value: str):
     message = {
         "type": "PUSH",
         "key": key,
-        "value": value
+        "value": value,
+        "part_no": "0"
     }
 
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
-    print(f"Received from server: {data}")
+    print(f"Received from server: {repr(data)}")
 
 
 # pull message from server
-def pull_message():
+async def pull_message():
     if client_socket is None:
         # TODO return error
         return None
@@ -58,8 +59,8 @@ def pull_message():
     }
 
     client_socket.send(json.dumps(message).encode())
-    data = client_socket.recv(1024).decode()
-    print(f"Received from server: {data}")
+    data = await client_socket.recv(1024).decode()
+    print(f"Received from server: {repr(data)}")
 
 
 # subscribe to server
@@ -81,7 +82,7 @@ def main():
             print("Error occured")
 
         push_message("Hello", "world")
-        sleep(30)
+        sleep(5)
 
     client_socket.close()
 
