@@ -93,10 +93,11 @@ class ZooKeeper(Broker):
         self.update_broker_status(broker.id, 0)
         print(f"Broker {broker.id} stopped.")
 
-    def consume(self):
-        for broker in brokers:
-            if not broker.is_empty:
-                return broker
+    @staticmethod
+    def consume():
+        for broker_id in brokers:
+            if not brokers[broker_id].is_empty:
+                return brokers[broker_id]
 
     async def main(self):
         server = await asyncio.start_server(self.handle_client, self._host, self._port)
