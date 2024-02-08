@@ -8,6 +8,7 @@ import threading
 import uuid
 from pqueue import Pqueue
 import logging
+from status import STATUS, SOCKET_STATUS
 
 app = None
 
@@ -49,6 +50,17 @@ class Broker:
             json_dict[key] = value
         return json_dict
 
+    def _push(self, json_dict):
+        self._logger.info(f"Received PUSH message {json_dict}")
+        part_no = int(json_dict["part_no"])
+        if part_no not in self._pqueues:
+            self._logger.error(f"Invalid part_no {part_no}")
+            return STATUS.ERROR
+        self._logger.info(f"Writing message {json_dict['value']} to part_no {part_no}")
+        message = self._pqueues[part_no].write_new_message(json_dict["value"])
+        self._logger.info(f"Message written to part_no {part_no}")
+        return STATUS.SUCCESS
+
     async def handle_client(self, reader, writer):
         data = await reader.read(100)
         message = data.decode()
@@ -57,18 +69,12 @@ class Broker:
 
         json_dict = self.extract_message(message)
         if json_dict["type"] == "PUSH":
-            self._logger.info(f"Received PUSH message {json_dict}")
-            part_no = int(json_dict["part_no"])
-            if part_no not in self._pqueues:
-                # error no such queue
-                self._logger.error(f"Invalid part_no {part_no}")
-                return "Invalid"
-            self._logger.info(
-                f"Writing message {json_dict['value']} to part_no {part_no}"
+            status = self._push(json_dict)
+            writer.write(
+                SOCKET_STATUS.WRITE_SUCCESS.value.encode()
+                if status == STATUS.SUCCESS
+                else SOCKET_STATUS.WRITE_FAILURE.value.encode()
             )
-            message = self._pqueues[part_no].write_new_message(json_dict["value"])
-            self._logger.info(f"Message written to part_no {part_no}")
-            writer.write(b"Message written")
             await writer.drain()
         elif json_dict["type"] == "PULL":
             part_no = json_dict["part_no"]
