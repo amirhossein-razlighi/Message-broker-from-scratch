@@ -76,14 +76,51 @@ class ZooKeeper(Broker):
             f"Subscriber {subscriber} assigned to broker {broker.host}: {broker.socket_port}"
         )
 
-    # This can be removed, due to inheritance from Broker
-    async def main(self):
-        server = await asyncio.start_server(self.handle_client, self._host, self._port)
-        addr = server.sockets[0].getsockname()
-        print(f"Serving on {addr}")
+    def get_broker_for_partition(self, partition):
+        brokers = self._partitions[partition]
+        return random.choice(brokers)
 
-        async with server:
-            await server.serve_forever()
+    def _push_to_broker(self, broker, json_dict):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((broker.host, broker.socket_port))
+            s.sendall(json.dumps(json_dict).encode())
+            data = s.recv(1024)
+            print("Received", repr(data))
+            if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
+                return STATUS.SUCCESS
+            else:
+                return STATUS.ERROR
+
+    # Overriding the Broker's "handle_client" method
+    async def handle_client(self, reader, writer):
+        data = await reader.read(100)
+        message = data.decode()
+        addr = writer.get_extra_info("peername")
+        print(f"Received {message} from {addr}")
+
+        json_dict = self.extract_message(message)
+        if json_dict["type"] == "PUSH":
+            broker = self.get_broker_for_partition(json_dict["part_no"])
+            status = self._push_to_broker(broker, json_dict)
+            if status == STATUS.SUCCESS:
+                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+            else:
+                writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+            await writer.drain()
+        elif json_dict["type"] == "PULL":
+            part_no = json_dict["part_no"]
+            if part_no not in self._pqueues:
+                # error no such queue
+                return "Invalid"
+            message = self._read(part_no)
+        else:
+            writer.write("Invalid".encode())
+
+        self._logger.info(f"Closing the connection")
+        writer.close()
+        # await writer.drain()
+        # print("Close the connection")
+        # writer.close()
 
 
 """
