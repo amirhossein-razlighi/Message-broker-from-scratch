@@ -1,0 +1,16 @@
+FROM python:3.10-slim-buster
+
+COPY . ./app
+COPY requirements.txt ./app
+
+WORKDIR /app
+
+RUN pip install -r requirements.txt
+
+RUN apt-get -y update
+RUN apt-get -y install curl
+
+EXPOSE 8000
+EXPOSE 8888
+
+CMD [ "python", "broker.py" ]

@@ -1,0 +1,44 @@
+version: "3.9"
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  broker_data:
+services:
+  # prometheus:
+  #   image: prometheus:2.34.0
+  #   volumes:
+  #     - ./prometheus:/etc/prometheus/
+  #     - prometheus_data:/prometheus
+  #   command:
+  #     - "--config.file=/etc/prometheus/prometheus.yml"
+  #     - "--storage.tsdb.path=/prometheus"
+  #     - "--web.listen-address=0.0.0.0:9090"
+  #     - "--web.route-prefix=/"
+  #     - "--web.external-url=http://127.0.0.1:9090/prometheus"
+  #     - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+  #     - "--web.console.templates=/usr/share/prometheus/consoles"
+  #     - "--web.enable-lifecycle"
+  #   restart: always
+  #   network_mode: "host"
+
+  brokers:
+    image: server_app:latest
+    # deploy:
+    #   mode: replicas
+    #   replicas: 1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  
+
+  clients:
+    image: client_app:latest
+    deploy:
+      mode: replicas
+      replicas: 3
+    depends_on:
+      brokers:
+        condition: service_healthy
