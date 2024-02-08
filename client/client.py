@@ -23,11 +23,11 @@ def find_master():
 
 # open connection with server
 def open_connection(node_ip, node_port):
-    host = node_ip
-    port = node_port
+    host_cnn = node_ip
+    port_cnn = node_port
 
     new_socket = socket.socket()
-    new_socket.connect((host, port))
+    new_socket.connect((host_cnn, port_cnn))
     print("Connected to server")
     return new_socket
 
