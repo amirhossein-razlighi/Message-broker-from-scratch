@@ -7,14 +7,16 @@ import uvicorn
 import threading
 import uuid
 from pqueue import Pqueue
+from status import STATUS, SOCKET_STATUS
 
 app = None
+
 
 class Broker:
     def __init__(self, host, port):
         self.id = str(uuid.uuid4())
-        self._queue = queue.Queue()
-        self._replica_queue = queue.Queue()
+        # self._queue = queue.Queue()
+        # self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
         self._port = port
@@ -41,20 +43,29 @@ class Broker:
             json_dict[key] = value
         return json_dict
 
+    def _push(self, part_no, value):
+        if part_no not in self._pqueues:
+            return STATUS.ERROR
+        self._pqueues[part_no].write_new_message(value)
+        return STATUS.OK
+
     async def handle_client(self, reader, writer):
         data = await reader.read(100)
         message = data.decode()
-        addr = writer.get_extra_info('peername')
+        addr = writer.get_extra_info("peername")
         print(f"Received {message} from {addr}")
 
         json_dict = self.extract_message(message)
         if json_dict["type"] == "PUSH":
             part_no = json_dict["part_no"]
-            if part_no not in self._pqueues:
-                # error no such queue
-                return "Invalid"
-            message = self._pqueues[part_no].write_new_message(json_dict["value"])
-            writer.write(message.encode())
+            value = json_dict["value"]
+            status = self._push(part_no, value)
+
+            (
+                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                if status == STATUS.OK
+                else writer.write(SOCKET_STATUS.WRITE_FAILED.value.encode())
+            )
         elif json_dict["type"] == "PULL":
             part_no = json_dict["part_no"]
             if part_no not in self._pqueues:
@@ -67,41 +78,47 @@ class Broker:
         # await writer.drain()
         # print("Close the connection")
         # writer.close()
-    
+
     async def read_root(self):
         return fastapi.Response(content="Hello, World", status_code=200)
-    
+
     async def get_zookeeper(self):
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
 
     async def socket_thread(self):
-        server = await asyncio.start_server(
-            self.handle_client, self._host, self._port)
+        server = await asyncio.start_server(self.handle_client, self._host, self._port)
 
         addr = server.sockets[0].getsockname()
-        print(f'Serving on {addr}')
+        print(f"Serving on {addr}")
 
         async with server:
             await server.serve_forever()
-    
+
     def run(self, host, http_port, socket_port):
         app = fastapi.FastAPI(port=http_port, host=host)
 
         app.add_api_route("/", self.read_root, methods=["GET"])
         app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
 
-        socket_thread = threading.Thread(target=asyncio.run, args=(self.socket_thread(),))
+        socket_thread = threading.Thread(
+            target=asyncio.run, args=(self.socket_thread(),)
+        )
         socket_thread.start()
-        http_thread = threading.Thread(target=asyncio.run, args=(uvicorn.run(app, host=host, port=http_port),))
+        http_thread = threading.Thread(
+            target=asyncio.run, args=(uvicorn.run(app, host=host, port=http_port),)
+        )
         http_thread.start()
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
-    parser.add_argument("--socket_port", default=8000, help="Port to bind socket connection to")
-    parser.add_argument("--http_port", default=8888, help="Port to bind https connection to")
+    parser.add_argument(
+        "--socket_port", default=8000, help="Port to bind socket connection to"
+    )
+    parser.add_argument(
+        "--http_port", default=8888, help="Port to bind https connection to"
+    )
     args = parser.parse_args()
     print(args.host, args.socket_port, args.http_port)
 
