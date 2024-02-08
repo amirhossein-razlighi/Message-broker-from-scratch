@@ -6,7 +6,7 @@ from typing import Callable
 
 # zookeeper ips
 zookeeper_ips = ["127.0.0.1"]
-port = 8888
+port = 8000
 master_ip = None
 client_socket = None
 client_subscribe_socket = None

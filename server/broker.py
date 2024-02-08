@@ -10,18 +10,14 @@ from pqueue import Pqueue
 
 app = None
 
+
 class Broker:
     def __init__(self, host, port):
         self.id = str(uuid.uuid4())
-        self._queue = queue.Queue()
-        self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
         self._port = port
         self._zookeeper = {"host": None, "http_port": None, "socket_port": None}
-
-    def __init__(self, id):
-        self.id = id
         self._pqueues = {}
 
     def _create_pqueue(self, part_no, is_replica):
@@ -66,10 +62,10 @@ class Broker:
         # await writer.drain()
         # print("Close the connection")
         # writer.close()
-    
+
     async def read_root(self):
         return fastapi.Response(content="Hello, World", status_code=200)
-    
+
     async def get_zookeeper(self):
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
 
@@ -82,7 +78,7 @@ class Broker:
 
         async with server:
             await server.serve_forever()
-    
+
     def run(self, host, http_port, socket_port):
         app = fastapi.FastAPI(port=http_port, host=host)
 
@@ -93,7 +89,6 @@ class Broker:
         socket_thread.start()
         http_thread = threading.Thread(target=asyncio.run, args=(uvicorn.run(app, host=host, port=http_port),))
         http_thread.start()
-
 
 
 if __name__ == '__main__':
