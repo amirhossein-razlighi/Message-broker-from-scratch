@@ -77,6 +77,24 @@ class ZooKeeper(Broker):
     def get_broker(self):
         return self._broker_list[0]
 
+    def update_broker_status(self, broker, status):
+        if broker.id in self.brokers:
+            self.brokers[broker.id]['status'] = status
+        else:
+            print(f"Error: Broker {broker.id} not found.")
+
+    def get_active_brokers(self):
+        active_brokers = [broker_id for broker_id, data in self.brokers.items() if data['status'] == 'UP']
+        return active_brokers
+
+    def start_broker(self, broker):
+        self.update_broker_status(broker.id, 'UP')
+        print(f"Broker {broker.id} started.")
+
+    def stop_broker(self, broker):
+        self.update_broker_status(broker.id, 'DOWN')
+        print(f"Broker {broker.id} stopped.")
+
     async def main(self):
         server = await asyncio.start_server(self.handle_client, self._host, self._port)
         addr = server.sockets[0].getsockname()
