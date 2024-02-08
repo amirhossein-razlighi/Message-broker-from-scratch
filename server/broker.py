@@ -9,6 +9,7 @@ import uuid
 from pqueue import Pqueue
 import logging
 from status import STATUS, SOCKET_STATUS
+import random
 
 app = None
 
@@ -65,6 +66,24 @@ class Broker:
         self._logger.info(f"Writing message {json_dict['value']} to part_no {part_no}")
         message = self._pqueues[part_no].write_new_message(json_dict["value"])
         self._logger.info(f"Message written to part_no {part_no}")
+
+        if self._broker_subscribers:
+            selected_subscriber = random.choice(self._broker_subscribers)
+            self._logger.info(f"Selected subscriber {selected_subscriber}")
+            self._logger.info(f"Sending message to subscriber {selected_subscriber}")
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.connect((selected_subscriber.host, selected_subscriber.socket_port))
+                    s.sendall(
+                        f"MESSAGE:{message}".encode()
+                    )
+                    data = s.recv(1024)
+                    self._logger.info(f"Received {data} from subscriber {selected_subscriber}")
+                except Exception as e:
+                    self._logger.error(f"Error while sending message to subscriber {selected_subscriber}")
+                    self._logger.error(e)
+                    #TODO: Implement unsubscription
+                    return STATUS.ERROR
         return STATUS.SUCCESS
 
     def _pull(self, json_dict):
