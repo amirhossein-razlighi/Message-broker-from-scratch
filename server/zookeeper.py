@@ -12,11 +12,13 @@ def hash_function(key):
 
 
 class ZooKeeper(Broker):
-    def __init__(self):
+    def __init__(self, broker_ids=None):
         super().__init__()
         self._broker_list = []
         self._partitions = {}
         self._broker_partitions = {}
+        self.brokers = {broker_id: {'status': 'DOWN', 'is_empty': True} for broker_id in
+                        broker_ids} if broker_ids else {}
 
     def add_broker(self, broker, partition, replica=None):
         position = hash_function(broker.id)
@@ -33,6 +35,13 @@ class ZooKeeper(Broker):
 
         if replica is not None:
             self.add_replica(broker)
+
+        # changes
+        if broker.id not in self.brokers:
+            self.brokers[broker.id] = {'status': 'DOWN', 'is_empty': True}
+            print(f"Broker {broker.id} added.")
+        else:
+            print(f"Error: Broker {broker.id} already exists.")
 
     def add_replica(self, broker):
         new_broker = Broker()
@@ -57,6 +66,13 @@ class ZooKeeper(Broker):
 
     def remove_broker(self, broker):
         self._broker_list.remove(broker)
+
+        # changes
+        if broker.id in self.brokers:
+            del self.brokers[broker.id]
+            print(f"Broker {broker.id} removed.")
+        else:
+            print(f"Error: Broker {broker.id} not found.")
 
     def get_broker(self):
         return self._broker_list[0]
