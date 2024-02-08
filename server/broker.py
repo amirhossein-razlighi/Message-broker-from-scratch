@@ -43,7 +43,9 @@ class Broker:
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
 
     def _read(self, part_no):
-        return self._pqueues[part_no].read()
+        message = self._pqueues[part_no].read()
+        self._logger.info(f"Read message {message} from part_no {part_no}")
+        return message
 
     def extract_message(self, message):
         statements = message.split(",")
@@ -91,11 +93,10 @@ class Broker:
         part_no = int(json_dict["part_no"])
         if part_no not in self._pqueues:
             self._logger.error(f"Invalid part_no {part_no}")
-            return STATUS.ERROR
+            part_no = random.choice(list(self._pqueues.keys()))
+            self._logger.info(f"Selected part_no {part_no}")
         self._logger.info(f"Reading message from part_no {part_no}")
-        message = self._pqueues[part_no].read()
-        self._logger.info(f"Message read from part_no {part_no}")
-        return message
+        return self._read(part_no)
         
     def _subscribe(self, subscriber, broker_id):
         self._logger.info(f"Received SUBSCRIBE message from {subscriber}")
@@ -119,11 +120,9 @@ class Broker:
             )
             await writer.drain()
         elif json_dict["type"] == "PULL":
-            part_no = json_dict["part_no"]
-            if part_no not in self._pqueues:
-                # error no such queue
-                return "Invalid"
-            message = self._read(part_no)
+            message = self._pull(json_dict)
+            writer.write(message.encode())
+            await writer.drain()
         elif json_dict["type"] == "SUBSCRIBE":
             status = self._subscribe(json_dict["subscriber"], json_dict["broker_id"])
             if status == STATUS.SUCCESS:
