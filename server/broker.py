@@ -26,6 +26,8 @@ class Broker:
             level=logging.DEBUG, filename=f"logs/broker_{self.id}.log", filemode="w"
             ,format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             )
+        self.is_up = 0
+        self.is_empty = 0
         self._logger = logging.getLogger(__name__)
 
     def _create_pqueue(self, part_no, is_replica):

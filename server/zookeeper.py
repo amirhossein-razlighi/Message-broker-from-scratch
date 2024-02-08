@@ -3,7 +3,6 @@ import hashlib
 import random
 
 from broker import Broker
-import fastapi
 import asyncio
 
 
@@ -12,13 +11,12 @@ def hash_function(key):
 
 
 class ZooKeeper(Broker):
-    def __init__(self, broker_ids=None):
+    def __init__(self, brokers_list=None):
         super().__init__()
         self._broker_list = []
         self._partitions = {}
         self._broker_partitions = {}
-        self.brokers = {broker_id: {'status': 'DOWN', 'is_empty': True} for broker_id in
-                        broker_ids} if broker_ids else {}
+        self.brokers = {broker.id: broker for broker in brokers_list} if brokers_list else {}
 
     def add_broker(self, broker, partition, replica=None):
         position = hash_function(broker.id)
@@ -38,7 +36,7 @@ class ZooKeeper(Broker):
 
         # changes
         if broker.id not in self.brokers:
-            self.brokers[broker.id] = {'status': 'DOWN', 'is_empty': True}
+            self.brokers[broker.id] = broker
             print(f"Broker {broker.id} added.")
         else:
             print(f"Error: Broker {broker.id} already exists.")
@@ -69,7 +67,7 @@ class ZooKeeper(Broker):
 
         # changes
         if broker.id in self.brokers:
-            del self.brokers[broker.id]
+            self.brokers.pop(broker.id)
             print(f"Broker {broker.id} removed.")
         else:
             print(f"Error: Broker {broker.id} not found.")
@@ -79,21 +77,26 @@ class ZooKeeper(Broker):
 
     def update_broker_status(self, broker, status):
         if broker.id in self.brokers:
-            self.brokers[broker.id]['status'] = status
+            self.brokers[broker.id].is_up = status
         else:
             print(f"Error: Broker {broker.id} not found.")
 
     def get_active_brokers(self):
-        active_brokers = [broker_id for broker_id, data in self.brokers.items() if data['status'] == 'UP']
+        active_brokers = [broker_id for broker_id, data in self.brokers.items() if data.is_up == 1]
         return active_brokers
 
     def start_broker(self, broker):
-        self.update_broker_status(broker.id, 'UP')
+        self.update_broker_status(broker.id, 1)
         print(f"Broker {broker.id} started.")
 
     def stop_broker(self, broker):
-        self.update_broker_status(broker.id, 'DOWN')
+        self.update_broker_status(broker.id, 0)
         print(f"Broker {broker.id} stopped.")
+
+    def consume(self):
+        for broker in brokers:
+            if not broker.is_empty:
+                return broker
 
     async def main(self):
         server = await asyncio.start_server(self.handle_client, self._host, self._port)
