@@ -67,6 +67,17 @@ class Broker:
         self._logger.info(f"Message written to part_no {part_no}")
         return STATUS.SUCCESS
 
+    def _pull(self, json_dict):
+        self._logger.info(f"Received PULL message {json_dict}")
+        part_no = int(json_dict["part_no"])
+        if part_no not in self._pqueues:
+            self._logger.error(f"Invalid part_no {part_no}")
+            return STATUS.ERROR
+        self._logger.info(f"Reading message from part_no {part_no}")
+        message = self._pqueues[part_no].read()
+        self._logger.info(f"Message read from part_no {part_no}")
+        return message
+        
     def _subscribe(self, subscriber, broker_id):
         self._logger.info(f"Received SUBSCRIBE message from {subscriber}")
         self._logger.info(f"Subscriber {subscriber} subscribed to broker {broker_id}")

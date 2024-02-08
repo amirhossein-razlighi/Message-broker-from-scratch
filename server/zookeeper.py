@@ -17,7 +17,7 @@ class ZooKeeper(Broker):
         self._broker_list = []
         self._partitions = {}
         self._broker_partitions = {}
-        self.global_subscribers = []
+        self._global_subscribers = []
         self._current_broker_index = 0  # Used for round-robin
 
     def add_broker(self, broker, partition, replica=None):
@@ -88,6 +88,7 @@ class ZooKeeper(Broker):
                 self._logger.info(
                     f"Subscriber {subscriber} subscribed to broker {broker_id} with host {broker.host} and socket_port {broker.socket_port}"
                 )
+                self._global_subscribers.append(subscriber)
                 return STATUS.SUCCESS
             else:
                 self._logger.error(
