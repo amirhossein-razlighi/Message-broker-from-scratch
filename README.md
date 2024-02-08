@@ -12,3 +12,8 @@ python3 server.py --http_port 8000 --socket_port 8001 --host 127.0.0.1
 !cd client
 python3 client.py
 ```
+## Running Unit Tests
+```python
+!cd server & cd tests
+python3 test_x.py # write the name of the test file
+```
