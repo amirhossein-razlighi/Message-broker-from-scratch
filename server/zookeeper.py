@@ -8,7 +8,7 @@ import asyncio
 
 
 def hash_function(key):
-    return int(hashlib.md5(key.encode('utf-8')).hexdigest(), 16)
+    return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16)
 
 
 class ZooKeeper(Broker):
@@ -18,7 +18,7 @@ class ZooKeeper(Broker):
         self._partitions = {}
         self._broker_partitions = {}
         self.global_subscribers = []
-        self._current_broker_index = 0 # Used for round-robin
+        self._current_broker_index = 0  # Used for round-robin
 
     def add_broker(self, broker, partition, replica=None):
         position = hash_function(broker.id)
@@ -31,7 +31,9 @@ class ZooKeeper(Broker):
         self._broker_partitions[broker] = partition
 
         self._broker_list.sort()
-        print(f"Broker {broker.id} added at position {position} in partition {partition}")
+        print(
+            f"Broker {broker.id} added at position {position} in partition {partition}"
+        )
 
         if replica is not None:
             self.add_replica(broker)
@@ -66,46 +68,19 @@ class ZooKeeper(Broker):
     def choose_broker_for_subscription(self, subscriber):
         broker = self._broker_list[self._current_broker_index][1]
         broker_id = broker.id
-        self._current_broker_index = (self._current_broker_index + 1) % len(self._broker_list)
+        self._current_broker_index = (self._current_broker_index + 1) % len(
+            self._broker_list
+        )
         broker.broker_subscribers.append(subscriber)
-        print(f"Subscriber {subscriber} assigned to broker {broker.host}: {broker.socket_port}")
+        print(
+            f"Subscriber {subscriber} assigned to broker {broker.host}: {broker.socket_port}"
+        )
 
-
-    # extend the handle_client function from broker to handle "SUBSCRIBE"
-    async def handle_client(self, reader, writer):
-        data = await reader.read(100)
-        message = data.decode()
-        addr = writer.get_extra_info('peername')
-        print(f"Received {message} from {addr}")
-
-        json_dict = self.extract_message(message)
-        if json_dict["type"] == "PUSH":
-            part_no = json_dict["part_no"]
-            if part_no not in self._pqueues:
-                # error no such queue
-                return "Invalid"
-            message = self._pqueues[part_no].write_new_message(json_dict["value"])
-            writer.write(message.encode())
-        elif json_dict["type"] == "PULL":
-            part_no = json_dict["part_no"]
-            if part_no not in self._pqueues:
-                # error no such queue
-                return "Invalid"
-            message = self._read(part_no)
-            writer.write(message.encode())
-        elif json_dict["type"] == "SUBSCRIBE":
-            self.global_subscribers.append(writer)
-            self.choose_broker_for_subscription(writer)
-            writer.write("Subscribed".encode())
-        else:
-            writer.write("Invalid".encode())
-
-        
     # This can be removed, due to inheritance from Broker
     async def main(self):
         server = await asyncio.start_server(self.handle_client, self._host, self._port)
         addr = server.sockets[0].getsockname()
-        print(f'Serving on {addr}')
+        print(f"Serving on {addr}")
 
         async with server:
             await server.serve_forever()
@@ -121,12 +96,12 @@ if __name__ == '__main__':
     zookeeper.add_broker(broker2, 'partition3')
     asyncio.run(zookeeper.main())
 """
-if __name__ == '__main__':
+if __name__ == "__main__":
     zookeeper = ZooKeeper()
 
     brokers = [Broker() for _ in range(5)]
     for i, broker in enumerate(brokers):
-        partition = f'partition{i}'
+        partition = f"partition{i}"
         zookeeper.add_broker(broker, partition)
 
     for broker in brokers:
