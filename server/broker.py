@@ -7,7 +7,7 @@ import uvicorn
 import threading
 import uuid
 from pqueue import Pqueue
-from status import STATUS, SOCKET_STATUS
+import logging
 
 app = None
 
@@ -15,17 +15,21 @@ app = None
 class Broker:
     def __init__(self, host, port):
         self.id = str(uuid.uuid4())
+        self._pqueues = {}
         # self._queue = queue.Queue()
         # self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
         self._port = port
         self._zookeeper = {"host": None, "http_port": None, "socket_port": None}
-        self.broker_subscribers = []
-
-    def __init__(self, id):
-        self.id = id
-        self._pqueues = {}
+        self._create_pqueue(0, False)
+        logging.basicConfig(
+            level=logging.DEBUG,
+            filename=f"logs/broker_{self.id}.log",
+            filemode="w",
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+        self._logger = logging.getLogger(__name__)
 
     def _create_pqueue(self, part_no, is_replica):
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
@@ -36,18 +40,14 @@ class Broker:
     def extract_message(self, message):
         statements = message.split(",")
         json_dict = {}
+        print(statements)
         for statement in statements:
             key, value = statement.split(":")
             key = key.split('"')[1]
             value = value.split('"')[1]
+            print(key, value)
             json_dict[key] = value
         return json_dict
-
-    def _push(self, part_no, value):
-        if part_no not in self._pqueues:
-            return STATUS.ERROR
-        self._pqueues[part_no].write_new_message(value)
-        return STATUS.OK
 
     async def handle_client(self, reader, writer):
         data = await reader.read(100)
@@ -57,24 +57,30 @@ class Broker:
 
         json_dict = self.extract_message(message)
         if json_dict["type"] == "PUSH":
-            part_no = json_dict["part_no"]
-            value = json_dict["value"]
-            status = self._push(part_no, value)
-
-            (
-                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
-                if status == STATUS.OK
-                else writer.write(SOCKET_STATUS.WRITE_FAILED.value.encode())
+            self._logger.info(f"Received PUSH message {json_dict}")
+            part_no = int(json_dict["part_no"])
+            if part_no not in self._pqueues:
+                # error no such queue
+                self._logger.error(f"Invalid part_no {part_no}")
+                return "Invalid"
+            self._logger.info(
+                f"Writing message {json_dict['value']} to part_no {part_no}"
             )
+            message = self._pqueues[part_no].write_new_message(json_dict["value"])
+            self._logger.info(f"Message written to part_no {part_no}")
+            writer.write(b"Message written")
+            await writer.drain()
         elif json_dict["type"] == "PULL":
             part_no = json_dict["part_no"]
             if part_no not in self._pqueues:
                 # error no such queue
                 return "Invalid"
             message = self._read(part_no)
-            writer.write(message.encode())
         else:
             writer.write("Invalid".encode())
+
+        self._logger.info(f"Closing the connection")
+        writer.close()
         # await writer.drain()
         # print("Close the connection")
         # writer.close()
