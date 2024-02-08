@@ -23,8 +23,13 @@ class Broker:
         self._host = host
         self._socket_port = socket_port
         self._http_port = http_port
-        self._zookeeper = {"host": host, "http_port": http_port, "socket_port": socket_port}
+        self._zookeeper = {
+            "host": host,
+            "http_port": http_port,
+            "socket_port": socket_port,
+        }
         self._create_pqueue(0, False)
+        self._broker_subscribers = []
         logging.basicConfig(
             level=logging.DEBUG,
             filename=f"logs/broker_{self.id}.log",
@@ -62,6 +67,12 @@ class Broker:
         self._logger.info(f"Message written to part_no {part_no}")
         return STATUS.SUCCESS
 
+    def _subscribe(self, subscriber, broker_id):
+        self._logger.info(f"Received SUBSCRIBE message from {subscriber}")
+        self._logger.info(f"Subscriber {subscriber} subscribed to broker {broker_id}")
+        self._broker_subscribers.append(subscriber)
+        return STATUS.SUCCESS
+
     async def handle_client(self, reader, writer):
         data = await reader.read(100)
         message = data.decode()
@@ -83,6 +94,12 @@ class Broker:
                 # error no such queue
                 return "Invalid"
             message = self._read(part_no)
+        elif json_dict["type"] == "SUBSCRIBE":
+            status = self._subscribe(json_dict["subscriber"], json_dict["broker_id"])
+            if status == STATUS.SUCCESS:
+                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+            else:
+                writer.write(SOCKET_STATUS.WRITE_FAILURE.value.encode())
         else:
             writer.write("Invalid".encode())
 
@@ -99,7 +116,9 @@ class Broker:
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
 
     async def socket_thread(self):
-        server = await asyncio.start_server(self.handle_client, self._host, self._socket_port)
+        server = await asyncio.start_server(
+            self.handle_client, self._host, self._socket_port
+        )
 
         addr = server.sockets[0].getsockname()
         print(f"Serving on {addr}")

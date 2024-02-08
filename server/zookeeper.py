@@ -71,10 +71,29 @@ class ZooKeeper(Broker):
         self._current_broker_index = (self._current_broker_index + 1) % len(
             self._broker_list
         )
-        broker.broker_subscribers.append(subscriber)
-        print(
-            f"Subscriber {subscriber} assigned to broker {broker.host}: {broker.socket_port}"
-        )
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((broker.host, broker.socket_port))
+            s.sendall(
+                json.dumps(
+                    {
+                        "type": "SUBSCRIBE",
+                        "subscriber": subscriber,
+                        "broker_id": broker_id,
+                    }
+                ).encode()
+            )
+            data = s.recv(1024)
+            print("Received", repr(data))
+            if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
+                self._logger.info(
+                    f"Subscriber {subscriber} subscribed to broker {broker_id} with host {broker.host} and socket_port {broker.socket_port}"
+                )
+                return STATUS.SUCCESS
+            else:
+                self._logger.error(
+                    f"Subscriber {subscriber} failed to subscribe to broker {broker_id} with host {broker.host} and socket_port {broker.socket_port}"
+                )
+                return STATUS.ERROR
 
     def get_broker_for_partition(self, partition):
         brokers = self._partitions[partition]
@@ -113,6 +132,13 @@ class ZooKeeper(Broker):
                 # error no such queue
                 return "Invalid"
             message = self._read(part_no)
+        elif json_dict["type"] == "SUBSCRIBE":
+            status = self.choose_broker_for_subscription(json_dict["subscriber"])
+            if status == STATUS.SUCCESS:
+                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+            else:
+                writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+            await writer.drain()
         else:
             writer.write("Invalid".encode())
 
