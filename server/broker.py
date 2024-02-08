@@ -14,15 +14,16 @@ app = None
 
 
 class Broker:
-    def __init__(self, host, port):
+    def __init__(self, host, socket_port, http_port):
         self.id = str(uuid.uuid4())
         self._pqueues = {}
         # self._queue = queue.Queue()
         # self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
-        self._port = port
-        self._zookeeper = {"host": None, "http_port": None, "socket_port": None}
+        self._socket_port = socket_port
+        self._http_port = http_port
+        self._zookeeper = {"host": host, "http_port": http_port, "socket_port": socket_port}
         self._create_pqueue(0, False)
         logging.basicConfig(
             level=logging.DEBUG,
@@ -98,7 +99,7 @@ class Broker:
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
 
     async def socket_thread(self):
-        server = await asyncio.start_server(self.handle_client, self._host, self._port)
+        server = await asyncio.start_server(self.handle_client, self._host, self._socket_port)
 
         addr = server.sockets[0].getsockname()
         print(f"Serving on {addr}")
@@ -134,5 +135,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args.host, args.socket_port, args.http_port)
 
-    broker = Broker(args.host, args.socket_port)
+    broker = Broker(args.host, args.socket_port, args.http_port)
     broker.run(args.host, args.http_port, args.socket_port)
