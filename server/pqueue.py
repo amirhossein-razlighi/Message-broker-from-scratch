@@ -12,6 +12,7 @@ class Pqueue:
         self.queue = []
     def __str__(self):
         return f"Pqueue(part_no={self.part_no}, is_replica={self.is_replica}, queue={self.queue})"
+
     # checks if the current node is not replica and can be read from
     def is_eligible_to_read(self):
         return not self.is_replica
