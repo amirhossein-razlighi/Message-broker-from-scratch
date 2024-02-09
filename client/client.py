@@ -4,9 +4,10 @@ import socket
 from time import sleep
 from typing import Callable
 import os
+import argparse
 
 # zookeeper ips
-zookeeper_ips = ["127.0.0.1"]
+zookeeper_ips = ['127.0.0.1']
 port = 8000
 master_ip = None
 client_socket = None

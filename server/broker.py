@@ -13,6 +13,7 @@ import random
 
 app = None
 
+uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
 
 class Broker:
     def __init__(self, host, socket_port, http_port):
@@ -31,12 +32,6 @@ class Broker:
         }
         self._create_pqueue(0, False)
         self._broker_subscribers = []
-        logging.basicConfig(
-            level=logging.DEBUG,
-            filename=f"logs/broker_{self.id}.log",
-            filemode="w",
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
         self.is_up = 0
         self.is_empty = 1
         self._logger = logging.getLogger(__name__)
@@ -57,19 +52,23 @@ class Broker:
             key, value = statement.split(":")
             key = key.split('"')[1]
             value = value.split('"')[1]
-            print(key, value)
+            # print(key, value)
             json_dict[key] = value
         return json_dict
 
     def _push(self, json_dict):
         self._logger.info(f"Received PUSH message {json_dict}")
+        print(f"Received PUSH message {json_dict}")
         part_no = int(json_dict["part_no"])
         if part_no not in self._pqueues:
             self._logger.error(f"Invalid part_no {part_no}")
+            print(f"Invalid part_no {part_no}")
             return STATUS.ERROR
         self._logger.info(f"Writing message {json_dict['value']} to part_no {part_no}")
+        print(f"Writing message {json_dict['value']} to part_no {part_no}")
         message = self._pqueues[part_no].write_new_message(json_dict["value"])
         self._logger.info(f"Message written to part_no {part_no}")
+        print(f"Message written to part_no {part_no}")
 
         if self._broker_subscribers:
             selected_subscriber = random.choice(self._broker_subscribers)
@@ -115,11 +114,13 @@ class Broker:
         json_dict = self.extract_message(message)
         if json_dict["type"] == "PUSH":
             status = self._push(json_dict)
+            print(f"Status: {status}")
             writer.write(
-                SOCKET_STATUS.WRITE_SUCCESS.value.encode()
+                str(SOCKET_STATUS.WRITE_SUCCESS.value).encode()
                 if status == STATUS.SUCCESS
-                else SOCKET_STATUS.WRITE_FAILURE.value.encode()
+                else str(SOCKET_STATUS.WRITE_FAILED.value).encode()
             )
+            print("Written")
             await writer.drain()
         elif json_dict["type"] == "PULL":
             message = self._pull(json_dict)
@@ -168,7 +169,7 @@ class Broker:
         )
         socket_thread.start()
         http_thread = threading.Thread(
-            target=asyncio.run, args=(uvicorn.run(app, host=host, port=http_port),)
+            target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )
         http_thread.start()
 
