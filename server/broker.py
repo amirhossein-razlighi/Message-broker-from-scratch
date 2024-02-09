@@ -106,40 +106,39 @@ class Broker:
         return STATUS.SUCCESS
 
     async def handle_client(self, reader, writer):
-        data = await reader.read(100)
-        message = data.decode()
-        addr = writer.get_extra_info("peername")
-        print(f"Received {message} from {addr}")
+        while True:
+            data = await reader.read(100)
+            message = data.decode()
+            addr = writer.get_extra_info("peername")
+            print(f"Received {message} from {addr}")
 
-        json_dict = self.extract_message(message)
-        if json_dict["type"] == "PUSH":
-            status = self._push(json_dict)
-            print(f"Status: {status}")
-            writer.write(
-                str(SOCKET_STATUS.WRITE_SUCCESS.value).encode()
-                if status == STATUS.SUCCESS
-                else str(SOCKET_STATUS.WRITE_FAILED.value).encode()
-            )
-            print("Written")
-            await writer.drain()
-        elif json_dict["type"] == "PULL":
-            message = self._pull(json_dict)
-            writer.write(message.encode())
-            await writer.drain()
-        elif json_dict["type"] == "SUBSCRIBE":
-            status = self._subscribe(json_dict["subscriber"], json_dict["broker_id"])
-            if status == STATUS.SUCCESS:
-                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+            json_dict = self.extract_message(message)
+            if json_dict["type"] == "PUSH":
+                status = self._push(json_dict)
+                print(f"Status: {status}")
+                writer.write(
+                    str(SOCKET_STATUS.WRITE_SUCCESS.value).encode()
+                    if status == STATUS.SUCCESS
+                    else str(SOCKET_STATUS.WRITE_FAILED.value).encode()
+                )
+                print("Written")
+                await writer.drain()
+            elif json_dict["type"] == "PULL":
+                message = self._pull(json_dict)
+                writer.write(message.encode())
+                await writer.drain()
+            elif json_dict["type"] == "SUBSCRIBE":
+                status = self._subscribe(json_dict["subscriber"], json_dict["broker_id"])
+                if status == STATUS.SUCCESS:
+                    writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                else:
+                    writer.write(SOCKET_STATUS.WRITE_FAILURE.value.encode())
             else:
-                writer.write(SOCKET_STATUS.WRITE_FAILURE.value.encode())
-        else:
-            writer.write("Invalid".encode())
+                writer.write("Invalid".encode())
 
         self._logger.info(f"Closing the connection")
         writer.close()
-        # await writer.drain()
-        # print("Close the connection")
-        # writer.close()
+        await writer.wait_closed()
 
     async def read_root(self):
         return fastapi.Response(content="Hello, World", status_code=200)
