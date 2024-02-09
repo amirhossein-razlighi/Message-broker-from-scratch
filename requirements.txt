@@ -1,3 +1,4 @@
 fastapi~=0.109.2
 requests~=2.27.1
 uvicorn~=0.27.0.post1
+envvars~=0.1.0

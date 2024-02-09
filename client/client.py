@@ -3,9 +3,11 @@ import json
 import socket
 from time import sleep
 from typing import Callable
+import argparse
+import envvars
 
 # zookeeper ips
-zookeeper_ips = ["127.0.0.1"]
+zookeeper_ips = envvars.get("zookeeper_ips")
 port = 8000
 master_ip = None
 client_socket = None
@@ -72,10 +74,11 @@ def subscribe(f: Callable):
 def main():
     global client_socket
     global master_ip
-    # master_ip = find_master()
-    # if master_ip is None:
-    #     print("No master found")
-    #     return
+    parser = argparse.ArgumentParser(description="Client")
+    parser.add_argument("--port", type=int, default=8000)
+    args = parser.parse_args()
+    port = args.port
+    
     while True:
         client_socket = open_connection("127.0.0.1", port)
         if client_socket is None:
