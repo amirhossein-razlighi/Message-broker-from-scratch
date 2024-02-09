@@ -20,7 +20,7 @@ class Broker:
         # self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
-        self._port = port
+        self._port = int(port)
         self._zookeeper = {"host": None, "http_port": None, "socket_port": None}
         self._create_pqueue(0, False)
         logging.basicConfig(
@@ -98,7 +98,7 @@ class Broker:
             await server.serve_forever()
 
     def run(self, host, http_port, socket_port):
-        app = fastapi.FastAPI(port=http_port, host=host)
+        app = fastapi.FastAPI(port=int(http_port), host=host)
 
         app.add_api_route("/", self.read_root, methods=["GET"])
         app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
@@ -111,7 +111,7 @@ class Broker:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--socket_port", default=8000, help="Port to bind socket connection to")
     parser.add_argument("--http_port", default=8888, help="Port to bind https connection to")
     args = parser.parse_args()

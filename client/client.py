@@ -24,11 +24,11 @@ def find_master():
 
 # open connection with server
 def open_connection(node_ip, node_port):
-    host_cnn = node_ip
+    host_ip = socket.gethostbyname(node_ip)
     port_cnn = node_port
 
     new_socket = socket.socket()
-    new_socket.connect((host_cnn, port_cnn))
+    new_socket.connect((host_ip, port_cnn))
     print("Connected to server")
     return new_socket
 
@@ -78,7 +78,7 @@ def main():
     #     print("No master found")
     #     return
     host_name = os.getenv("BROKER")
-    client_socket = open_connection("http://{}".format(host_name), port)
+    client_socket = open_connection(host_name, port)
     while True:
         if client_socket is None:
             print("Error occured")

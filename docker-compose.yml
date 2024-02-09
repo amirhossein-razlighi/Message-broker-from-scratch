@@ -35,10 +35,6 @@ services:
       - local
     # command: 
     #   - "--http_port=8001"
-    # networks:
-    #   - mynet
-    # expose:
-    #   - 8888
 
   
 
@@ -46,14 +42,15 @@ services:
     image: client_app:latest
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 1
+    # entrypoint: sleep 10000
     depends_on:
       brokers:
         condition: service_healthy
+    environment:
+      - BROKER=sad-brokers-1
     networks:
       - local
-    # networks:
-    #   - mynet
 
 
 networks:
