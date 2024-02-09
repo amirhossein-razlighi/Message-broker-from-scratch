@@ -1,4 +1,5 @@
 import asyncio
+import queue
 import socket
 import json
 import fastapi
@@ -35,6 +36,25 @@ class Broker:
         self.is_up = 0
         self.is_empty = 1
         self._logger = logging.getLogger(__name__)
+        self._observers = set()
+        self._is_replica = False
+    
+    def __str__(self):
+        return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica}, observers={self._observers})"
+
+    def register(self, observer):
+        self._observers.add(observer)
+
+    def unregister(self, observer):
+        self._observers.remove(observer)
+
+    def notify(self, part_no, message):
+        print(f"Broker {self.id} notifying observers...")
+        for observer in self._observers:
+            if observer._is_replica and part_no in observer._pqueues:
+                print(f"Updating observer {observer.id}...")
+                observer.update(self, part_no, message)
+
 
     def _create_pqueue(self, part_no, is_replica):
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
@@ -69,6 +89,7 @@ class Broker:
         message = self._pqueues[part_no].write_new_message(json_dict["value"])
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
+        self.notify(part_no, message)
 
         if self._broker_subscribers:
             selected_subscriber = random.choice(self._broker_subscribers)
