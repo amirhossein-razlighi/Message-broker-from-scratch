@@ -168,7 +168,7 @@ class Broker:
         )
         socket_thread.start()
         http_thread = threading.Thread(
-            target=asyncio.run, args=(uvicorn.run(app, host=host, port=http_port),)
+            target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )
         http_thread.start()
 
