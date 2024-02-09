@@ -13,4 +13,4 @@ RUN apt-get -y install curl
 EXPOSE 8000
 EXPOSE 8888
 
-CMD [ "python", "broker.py" ]
+ENTRYPOINT [ "python", "broker.py" ]

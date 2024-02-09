@@ -17,5 +17,5 @@ sudo docker build . -t client_app:latest
 ```
 ```python
 # run the project
-sudo docker compose up -d
+sudo docker compose up -p "sad" -d
 ```

@@ -1,9 +1,8 @@
-version: "3.9"
+version: '3.8'
 
 volumes:
   prometheus_data:
   grafana_data:
-  broker_data:
 services:
   # prometheus:
   #   image: prometheus:2.34.0
@@ -24,21 +23,39 @@ services:
 
   brokers:
     image: server_app:latest
-    # deploy:
-    #   mode: replicas
-    #   replicas: 1
+    deploy:
+      mode: replicated
+      replicas: 3
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - local
+    # command: 
+    #   - "--http_port=8001"
+    # networks:
+    #   - mynet
+    # expose:
+    #   - 8888
+
   
 
   clients:
     image: client_app:latest
     deploy:
-      mode: replicas
+      mode: replicated
       replicas: 3
     depends_on:
       brokers:
         condition: service_healthy
+    networks:
+      - local
+    # networks:
+    #   - mynet
+
+
+networks:
+  local:
+    driver: bridge

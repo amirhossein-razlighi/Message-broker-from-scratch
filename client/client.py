@@ -3,6 +3,7 @@ import json
 import socket
 from time import sleep
 from typing import Callable
+import os
 
 # zookeeper ips
 zookeeper_ips = ["127.0.0.1"]
@@ -76,8 +77,9 @@ def main():
     # if master_ip is None:
     #     print("No master found")
     #     return
+    host_name = os.getenv("BROKER")
+    client_socket = open_connection("http://{}".format(host_name), port)
     while True:
-        client_socket = open_connection("127.0.0.1", port)
         if client_socket is None:
             print("Error occured")
 
