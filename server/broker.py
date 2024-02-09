@@ -17,7 +17,7 @@ app = None
 uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
 
 class Broker:
-    def __init__(self, host, socket_port, http_port):
+    def __init__(self, host, socket_port, http_port, ping_port):
         self.id = str(uuid.uuid4())
         self._pqueues = {}
         # self._queue = queue.Queue()
@@ -38,6 +38,7 @@ class Broker:
         self._logger = logging.getLogger(__name__)
         self._observers = set()
         self._is_replica = False
+        self.ping_port = ping_port
     
     def __str__(self):
         return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica}, observers={self._observers})"
@@ -202,8 +203,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--http_port", default=8888, help="Port to bind https connection to"
     )
+    parser.add_argument(
+        "--ping_port", default=7500, help="Port to bind ping connection to"
+    )
     args = parser.parse_args()
-    print(args.host, args.socket_port, args.http_port)
+    print(args.host, args.socket_port, args.http_port, args.ping_port)
 
-    broker = Broker(args.host, args.socket_port, args.http_port)
+    broker = Broker(args.host, args.socket_port, args.http_port, args.ping_port)
     broker.run(args.host, args.http_port, args.socket_port)

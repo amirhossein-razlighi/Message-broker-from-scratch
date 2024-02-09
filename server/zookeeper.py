@@ -3,6 +3,8 @@ import hashlib
 import pickle
 import random
 import socket
+import time
+import threading
 
 from broker import Broker
 import asyncio
@@ -122,34 +124,70 @@ class ZooKeeper(Broker):
     def get_broker(self):
         return self._broker_list[0]
 
-    def update_broker_status(self, broker, status):
-        if broker.id in self.brokers:
-            self.brokers[broker.id].is_up = status
+    def update_broker_status(self, broker_id, status):
+        if broker_id in self.brokers:
+            self.brokers[broker_id].is_up = status
         else:
-            print(f"Error: Broker {broker.id} not found.")
+            print(f"Error: Broker {broker_id} not found.")
 
     def get_active_brokers(self):
         active_brokers = [broker_id for broker_id, data in self.brokers.items() if data.is_up == 1]
         return active_brokers
 
-    def start_broker(self, broker):
-        self.update_broker_status(broker.id, 1)
+    def start_broker(self, broker_id):
+        self.update_broker_status(broker_id, True)
         print(f"Broker {broker.id} started.")
 
-    def stop_broker(self, broker):
-        self.update_broker_status(broker.id, 0)
+    def stop_broker(self, broker_id):
+        self.update_broker_status(broker_id, False)
         print(f"Broker {broker.id} stopped.")
 
-    @staticmethod
-    def consume():
-        for broker_id in brokers:
-            if not brokers[broker_id].is_empty:
+    def consume(self):
+        for broker_id in self.brokers:
+            if not brokers[broker_id].is_empty and brokers[broker_id].is_up:
                 return brokers[broker_id]
 
-    async def main(self):
-        server = await asyncio.start_server(self.handle_client, self._host, self._port)
-        addr = server.sockets[0].getsockname()
-        print(f'Serving on {addr}')
+    def send_heartbeat(self, broker_id):
+        broker_address = (self.brokers[broker_id].host, self.brokers[broker_id].ping_port)
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(3)
+                s.connect(broker_address)
+                s.sendall(b"PING")
+                self.start_broker(broker_id)
+                print(f"Sent heartbeat to {broker_address}")
+        except socket.timeout:
+            self.stop_broker(broker_id)
+            print(f"Timeout sending heartbeat to {broker_address}")
+        except Exception as e:
+            self.stop_broker(broker_id)
+            print(f"Error sending heartbeat to {broker_address}: {e}")
+
+    def health_check_thread(self):
+        while True:
+            for broker_id in self.brokers:
+                self.send_heartbeat(broker_id)
+
+            time.sleep(5)
+
+    def run(self, host, http_port, socket_port):
+        app = fastapi.FastAPI(port=int(http_port), host=host)
+
+        app.add_api_route("/", self.read_root, methods=["GET"])
+        app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
+
+        socket_thread = threading.Thread(
+            target=asyncio.run, args=(self.socket_thread(),)
+        )
+        socket_thread.start()
+        
+        http_thread = threading.Thread(
+            target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
+        )
+        http_thread.start()
+        
+        health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
+        health_check_thread.start()
         
     def choose_broker_for_subscription(self, subscriber):
         broker = self._broker_list[self._current_broker_index][1]
@@ -234,6 +272,7 @@ class ZooKeeper(Broker):
         # await writer.drain()
         # print("Close the connection")
         # writer.close()
+
 
 
 """
