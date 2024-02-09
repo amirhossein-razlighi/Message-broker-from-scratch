@@ -19,16 +19,16 @@ class Broker:
         # self._queue = queue.Queue()
         # self._replica_queue = queue.Queue()
         self._app = app
-        self._host = host
-        self._port = port
+        self.host = host
+        self.port = port
         self._zookeeper = {"host": None, "http_port": None, "socket_port": None}
         self._create_pqueue(0, False)
         logging.basicConfig(
             level=logging.DEBUG, filename=f"logs/broker_{self.id}.log", filemode="w"
             , format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
-        self.is_up = 0
-        self.is_empty = 1
+        self.is_up = True
+        self.is_empty = True
         self._logger = logging.getLogger(__name__)
         self.ping_port = ping_port
 

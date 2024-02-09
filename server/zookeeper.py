@@ -78,22 +78,22 @@ class ZooKeeper(Broker):
     def get_broker(self):
         return self._broker_list[0]
 
-    def update_broker_status(self, broker, status):
-        if broker.id in self.brokers:
-            self.brokers[broker.id].is_up = status
+    def update_broker_status(self, broker_id, status):
+        if broker_id in self.brokers:
+            self.brokers[broker_id].is_up = status
         else:
-            print(f"Error: Broker {broker.id} not found.")
+            print(f"Error: Broker {broker_id} not found.")
 
     def get_active_brokers(self):
         active_brokers = [broker_id for broker_id, data in self.brokers.items() if data.is_up == 1]
         return active_brokers
 
-    def start_broker(self, broker):
-        self.update_broker_status(broker.id, 1)
+    def start_broker(self, broker_id):
+        self.update_broker_status(broker_id, True)
         print(f"Broker {broker.id} started.")
 
-    def stop_broker(self, broker):
-        self.update_broker_status(broker.id, 0)
+    def stop_broker(self, broker_id):
+        self.update_broker_status(broker_id, False)
         print(f"Broker {broker.id} stopped.")
 
     def consume(self):
@@ -102,19 +102,19 @@ class ZooKeeper(Broker):
                 return brokers[broker_id]
 
     def send_heartbeat(self, broker_id):
-        broker_address = (self.brokers[broker_id]._host, self.brokers[broker_id].ping_port)
+        broker_address = (self.brokers[broker_id].host, self.brokers[broker_id].ping_port)
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(3)
                 s.connect(broker_address)
                 s.sendall(b"PING")
-                self.brokers[broker_id].is_up = True
+                self.start_broker(broker_id)
                 print(f"Sent heartbeat to {broker_address}")
         except socket.timeout:
-            self.brokers[broker_id].is_up = False
+            self.stop_broker(broker_id)
             print(f"Timeout sending heartbeat to {broker_address}")
         except Exception as e:
-            self.brokers[broker_id].is_up = False
+            self.stop_broker(broker_id)
             print(f"Error sending heartbeat to {broker_address}: {e}")
 
     def health_check_thread(self):
