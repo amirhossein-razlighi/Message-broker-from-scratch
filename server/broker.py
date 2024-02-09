@@ -116,9 +116,9 @@ class Broker:
             status = self._push(json_dict)
             print(f"Status: {status}")
             writer.write(
-                SOCKET_STATUS.WRITE_SUCCESS
+                str(SOCKET_STATUS.WRITE_SUCCESS.value).encode()
                 if status == STATUS.SUCCESS
-                else SOCKET_STATUS.WRITE_FAILED
+                else str(SOCKET_STATUS.WRITE_FAILED.value).encode()
             )
             print("Written")
             await writer.drain()
