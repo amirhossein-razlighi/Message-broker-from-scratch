@@ -5,6 +5,8 @@ from time import sleep
 from typing import Callable
 import os
 import argparse
+import asyncio
+import logging
 
 # zookeeper ips
 zookeeper_ips = ['127.0.0.1']
@@ -13,6 +15,7 @@ master_ip = None
 client_socket = None
 client_subscribe_socket = None
 
+logging.log(logging.INFO, "Client started")
 
 # find the master zookeeper
 def find_master():
@@ -57,11 +60,11 @@ async def pull_message():
         # TODO return error
         return None
     message = {
-        "command": "pull"
+        "type": "PULL"
     }
 
     client_socket.send(json.dumps(message).encode())
-    data = await client_socket.recv(1024).decode()
+    data = client_socket.recv(1024).decode()
     print(f"Received from server: {repr(data)}")
 
 
@@ -80,12 +83,21 @@ def main():
     #     return
     host_name = os.getenv("BROKER")
     client_socket = open_connection(host_name, port)
-    while True:
-        if client_socket is None:
-            print("Error occured")
+    # while True:
+    #     if client_socket is None:
+    #         print("Error occured")
 
-        push_message("Hello", "world")
-        sleep(5)
+    #     push_message("Hello", "world")
+    #     sleep(5)
+
+    for i in range(10):
+        push_message(f"{i}", f"world {i}")
+        push_message(f"{i}", f"world {i + 1}")
+        push_message(f"{i}", f"world {i + 2}")
+    
+    for i in range(10):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(pull_message())
 
     client_socket.close()
 
