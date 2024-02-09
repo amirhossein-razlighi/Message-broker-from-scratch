@@ -121,7 +121,6 @@ class Broker:
                     if status == STATUS.SUCCESS
                     else str(SOCKET_STATUS.WRITE_FAILED.value).encode()
                 )
-                print("Written")
                 await writer.drain()
             elif json_dict["type"] == "PULL":
                 message = self._pull(json_dict)
