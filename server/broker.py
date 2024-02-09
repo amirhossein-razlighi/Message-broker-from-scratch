@@ -174,7 +174,7 @@ class Broker:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument(
         "--socket_port", default=8000, help="Port to bind socket connection to"
     )
