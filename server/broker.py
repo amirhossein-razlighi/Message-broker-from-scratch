@@ -22,7 +22,7 @@ class Broker:
         # self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
-        self._socket_port = socket_port
+        self._socket_port = int(socket_port)
         self._http_port = http_port
         self._zookeeper = {
             "host": host,
@@ -158,7 +158,7 @@ class Broker:
             await server.serve_forever()
 
     def run(self, host, http_port, socket_port):
-        app = fastapi.FastAPI(port=http_port, host=host)
+        app = fastapi.FastAPI(port=int(http_port), host=host)
 
         app.add_api_route("/", self.read_root, methods=["GET"])
         app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
