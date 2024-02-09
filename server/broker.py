@@ -11,8 +11,9 @@ import logging
 
 app = None
 
+
 class Broker:
-    def __init__(self, host, port):
+    def __init__(self, host, port, ping_port):
         self.id = str(uuid.uuid4())
         self._pqueues = {}
         # self._queue = queue.Queue()
@@ -24,11 +25,12 @@ class Broker:
         self._create_pqueue(0, False)
         logging.basicConfig(
             level=logging.DEBUG, filename=f"logs/broker_{self.id}.log", filemode="w"
-            ,format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
+            , format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         self.is_up = 0
         self.is_empty = 1
         self._logger = logging.getLogger(__name__)
+        self.ping_port = ping_port
 
     def _create_pqueue(self, part_no, is_replica):
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
@@ -75,16 +77,16 @@ class Broker:
             message = self._read(part_no)
         else:
             writer.write("Invalid".encode())
-        
+
         self._logger.info(f"Closing the connection")
         writer.close()
         # await writer.drain()
         # print("Close the connection")
         # writer.close()
-    
+
     async def read_root(self):
         return fastapi.Response(content="Hello, World", status_code=200)
-    
+
     async def get_zookeeper(self):
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
 
@@ -97,7 +99,7 @@ class Broker:
 
         async with server:
             await server.serve_forever()
-    
+
     def run(self, host, http_port, socket_port):
         app = fastapi.FastAPI(port=http_port, host=host)
 
@@ -108,7 +110,6 @@ class Broker:
         socket_thread.start()
         http_thread = threading.Thread(target=asyncio.run, args=(uvicorn.run(app, host=host, port=http_port),))
         http_thread.start()
-
 
 
 if __name__ == '__main__':

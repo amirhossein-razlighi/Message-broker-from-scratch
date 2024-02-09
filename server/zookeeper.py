@@ -1,6 +1,9 @@
 import asyncio
 import hashlib
 import random
+import socket
+import time
+import threading
 
 from broker import Broker
 import asyncio
@@ -93,19 +96,45 @@ class ZooKeeper(Broker):
         self.update_broker_status(broker.id, 0)
         print(f"Broker {broker.id} stopped.")
 
-    @staticmethod
-    def consume():
-        for broker_id in brokers:
-            if not brokers[broker_id].is_empty:
+    def consume(self):
+        for broker_id in self.brokers:
+            if not brokers[broker_id].is_empty and brokers[broker_id].is_up:
                 return brokers[broker_id]
+
+    def send_heartbeat(self, broker_id):
+        broker_address = (self.brokers[broker_id]._host, self.brokers[broker_id].ping_port)
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(3)
+                s.connect(broker_address)
+                s.sendall(b"PING")
+                self.brokers[broker_id].is_up = True
+                print(f"Sent heartbeat to {broker_address}")
+        except socket.timeout:
+            self.brokers[broker_id].is_up = False
+            print(f"Timeout sending heartbeat to {broker_address}")
+        except Exception as e:
+            self.brokers[broker_id].is_up = False
+            print(f"Error sending heartbeat to {broker_address}: {e}")
+
+    def health_check_thread(self):
+        while True:
+            for broker_id in self.brokers:
+                self.send_heartbeat(broker_id)
+
+            time.sleep(5)
 
     async def main(self):
         server = await asyncio.start_server(self.handle_client, self._host, self._port)
         addr = server.sockets[0].getsockname()
         print(f'Serving on {addr}')
 
+        health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
+        health_check_thread.start()
+
         async with server:
             await server.serve_forever()
+
 
 
 """
@@ -138,3 +167,5 @@ if __name__ == '__main__':
         print(f"Partition: {partition}")
         for broker in brokers:
             print(f"Broker ID: {broker.id}")
+
+
