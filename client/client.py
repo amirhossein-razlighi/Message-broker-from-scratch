@@ -69,9 +69,19 @@ async def pull_message():
 
 
 # subscribe to server
-def subscribe(f: Callable):
-    client_subscribe_socket = open_connection("127.0.0.1", port)
-    # TODO: complete later
+async def subscribe(f: Callable):
+    # client_subscribe_socket = open_connection("127.0.0.1", port)
+    if client_socket is None:
+        # TODO return error
+        return None
+    message = {
+        "type": "SUBSCRIBE",
+        "broker_id": "0"
+    }
+
+    client_socket.send(json.dumps(message).encode())
+    data = client_socket.recv(1024).decode()
+    print(f"Received from server: {repr(data)}")
 
 
 def main():
@@ -83,6 +93,7 @@ def main():
     #     return
     host_name = os.getenv("BROKER")
     client_socket = open_connection(host_name, port)
+    # client_socket = open_connection("127.0.0.1", 8000)
     # while True:
     #     if client_socket is None:
     #         print("Error occured")
@@ -90,11 +101,17 @@ def main():
     #     push_message("Hello", "world")
     #     sleep(5)
 
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(subscribe(None))
+
+    sleep(6)
+
     for i in range(10):
         push_message(f"{i}", f"world {i}")
         push_message(f"{i}", f"world {i + 1}")
         push_message(f"{i}", f"world {i + 2}")
     
+    sleep(12)
     for i in range(10):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(pull_message())

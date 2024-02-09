@@ -14,6 +14,7 @@ import random
 
 app = None
 
+
 uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
 
 class Broker:
@@ -62,7 +63,8 @@ class Broker:
 
     def _read(self, part_no):
         message = self._pqueues[part_no].read()
-        self._logger.info(f"Read message {message} from part_no {part_no}")
+        if message is not None:
+            self._logger.info(f"Read message {message} from part_no {part_no}")
         return message
 
     def extract_message(self, message):
@@ -77,6 +79,22 @@ class Broker:
             json_dict[key] = value
         return json_dict
 
+    async def _subscribe_checker_and_notifier(self, writer):
+        while True:
+            try:
+                if not len(self._broker_subscribers) == 0 and (message := self._read(0) is not None):
+                    selected_subscriber = random.choice(self._broker_subscribers)
+                    self._logger.info(f"Selected subscriber {selected_subscriber}")
+                    self._logger.info(f"Sending message to subscriber {selected_subscriber}")
+                    print(f"Sending message to subscriber {selected_subscriber}")
+                    writer.write(message.encode())
+                    await writer.drain()
+                    print(f"Message sent to subscriber {selected_subscriber}")
+                    self._logger.info(f"Message sent to subscriber {selected_subscriber}")
+            except:
+                continue
+            await asyncio.sleep(3)
+
     def _push(self, json_dict):
         self._logger.info(f"Received PUSH message {json_dict}")
         print(f"Received PUSH message {json_dict}")
@@ -90,25 +108,8 @@ class Broker:
         message = self._pqueues[part_no].write_new_message(json_dict["value"])
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
+        self.is_empty = 0 #TODO ?
         self.notify(part_no, message)
-
-        if self._broker_subscribers:
-            selected_subscriber = random.choice(self._broker_subscribers)
-            self._logger.info(f"Selected subscriber {selected_subscriber}")
-            self._logger.info(f"Sending message to subscriber {selected_subscriber}")
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.connect((selected_subscriber.host, selected_subscriber.socket_port))
-                    s.sendall(
-                        f"MESSAGE:{message}".encode()
-                    )
-                    data = s.recv(1024)
-                    self._logger.info(f"Received {data} from subscriber {selected_subscriber}")
-                except Exception as e:
-                    self._logger.error(f"Error while sending message to subscriber {selected_subscriber}")
-                    self._logger.error(e)
-                    #TODO: Implement unsubscription
-                    return STATUS.ERROR
         return STATUS.SUCCESS
 
     def _pull(self, json_dict):
@@ -123,10 +124,12 @@ class Broker:
         self._logger.info(f"Reading message from part_no {part_no}")
         return self._read(part_no)
         
-    def _subscribe(self, subscriber, broker_id):
+    def _subscribe(self, subscriber, broker_id, writer):
+        subscriber = {"host": subscriber[0], "socket_port": subscriber[1]}
         self._logger.info(f"Received SUBSCRIBE message from {subscriber}")
         self._logger.info(f"Subscriber {subscriber} subscribed to broker {broker_id}")
         self._broker_subscribers.append(subscriber)
+        asyncio.create_task(self._subscribe_checker_and_notifier(writer))
         return STATUS.SUCCESS
 
     async def handle_client(self, reader, writer):
@@ -151,11 +154,11 @@ class Broker:
                 writer.write(message.encode())
                 await writer.drain()
             elif json_dict["type"] == "SUBSCRIBE":
-                status = self._subscribe(json_dict["subscriber"], json_dict["broker_id"])
+                status = self._subscribe(addr, json_dict["broker_id"], writer)
                 if status == STATUS.SUCCESS:
-                    writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                    writer.write(str(SOCKET_STATUS.SUBSCRIBE_SUCCESS.value).encode())
                 else:
-                    writer.write(SOCKET_STATUS.WRITE_FAILURE.value.encode())
+                    writer.write(str(SOCKET_STATUS.SUBSCRIBE_FAILED.value).encode())
             else:
                 writer.write("Invalid".encode())
 
@@ -210,6 +213,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     print(args.host, args.socket_port, args.http_port, args.ping_port)
+
 
     broker = Broker(args.host, args.socket_port, args.http_port, args.ping_port)
     broker.run(args.host, args.http_port, args.socket_port)
