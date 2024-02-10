@@ -15,6 +15,6 @@ class TestAPI(unittest.TestCase):
         broker_thread.start()
         sleep(1)
         host = "127.0.0.1"
-        port = 8001
+        port = 8002
         response = requests.get(f"http://{host}:{port}/zookeeper")
         self.assertEqual(response.status_code, 200)
