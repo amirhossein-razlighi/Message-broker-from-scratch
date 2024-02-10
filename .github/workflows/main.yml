@@ -29,10 +29,7 @@ jobs:
       
     - name: Test server unit tests
       run: |
-        docker exec -it sad_brokers_1 sh
-        cd server/tests
-        python3 -m unittest
-        exit
+        docker exec -it server_app:latest sh -c "cd server/tests && python3 -m unittest"
 
     - name: Test Docker Compose
       run: |
