@@ -52,6 +52,10 @@ jobs:
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
 
+      - name: Copy docker compose file
+        run: |
+          scp -i $HOME/.ssh/id_rsa docker-compose.yml ubuntu@185.97.117.121:/home/ubuntu/
+
       - name: Pull and run Docker images
         run: |
           ssh -i $HOME/.ssh/id_rsa ubuntu@185.97.117.121 << EOF
