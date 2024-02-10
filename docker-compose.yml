@@ -26,6 +26,8 @@ services:
     deploy:
       mode: replicated
       replicas: 3
+    depends_on:
+      - zookeepers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 30s
@@ -43,7 +45,7 @@ services:
       replicas: 1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
-      interval: 30s
+      interval: 20s
       timeout: 10s
       retries: 3
     networks:
