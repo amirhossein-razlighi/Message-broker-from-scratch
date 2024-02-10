@@ -32,7 +32,7 @@ jobs:
 
     - name: Test server unit tests
       run: |
-        docker exec server_app sh -c "cd app/server/tests && python3 -m unittest"
+        docker exec server_app sh -c "ls && cd app/server/tests && python3 -m unittest"
 
     - name: Stop and remove server_app container
       run: |
