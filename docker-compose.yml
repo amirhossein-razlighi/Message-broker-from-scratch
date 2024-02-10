@@ -36,7 +36,14 @@ services:
     # command: 
     #   - "--http_port=8001"
 
-  
+  zookeepers:
+    image: zookeeper_app:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+    networks:
+      - local
+
 
   clients:
     image: client_app:latest

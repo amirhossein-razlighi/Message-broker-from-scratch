@@ -17,12 +17,18 @@ python3 client.py
 !cd server & cd tests
 python3 test_x.py # write the name of the test file
 ```
-## docker compose usage
+## Docker compose usage
 
 ```python
-# create server image
+# create broker image
 cd server
-sudo docker build . -t server_app:latest
+sudo docker build -t server_app:latest -f Dockerfile.broker .
+```
+
+```python
+# create zookeeper image
+cd server
+sudo docker build -t zookeeper_app:latest -f Dockerfile.zookeeper .
 ```
 
 ```python
