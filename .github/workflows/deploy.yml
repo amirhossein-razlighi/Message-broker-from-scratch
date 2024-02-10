@@ -19,12 +19,12 @@ jobs:
       - name: Write SSH Private Key to File
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
-          chmod 600 private_key.pem
+          chmod 400 private_key.key
       
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: private_key.pem
+        run: |
+          eval `ssh-agent -s`
+          ssh-add private_key.key
       
       - name: Deploy Application
         run: |
