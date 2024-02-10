@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:19.03.12
+        options: --privileged
+        ports:
+          - 2375:2375
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Build client_app Docker image
+      run: docker build -t client_app:latest client/
+
+    - name: Build server_app Docker image
+      run: docker build -t server_app:latest server/
+
+    - name: Test Docker Compose
+      run: |
+        docker-compose -f path/to/your/docker-compose.yml up --exit-code-from sad-clients-1
