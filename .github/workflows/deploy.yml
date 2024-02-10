@@ -16,11 +16,15 @@ jobs:
       - name: Install SSH Client
         run: sudo apt-get install -y openssh-client
       
+      - name: Write SSH private key to id_rsa
+        run: echo "${{ secrets.SSH_PRIVATE_KEY }}" > $HOME/.ssh/id_rsa && chmod 600 $HOME/.ssh/id_rsa
+      
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      
+          ssh-known-hosts: ~/.ssh/known_hosts
+          
       - name: Deploy Application
         run: |
           ssh -i $HOME/.ssh/id_rsa ubuntu@185.97.119.74 "echo 'Deployment successful!'"
