@@ -29,5 +29,6 @@ jobs:
 
     - name: Test Docker Compose
       run: |
-        docker-compose -f ./docker-compose.yml -p "sad" up -d timeout 35s
+        docker-compose -f ./docker-compose.yml -p "sad" up -d
+        sleep 35
         docker-compose -f ./docker-compose.yml -p "sad" down
