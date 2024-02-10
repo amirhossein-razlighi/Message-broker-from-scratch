@@ -21,9 +21,9 @@ class Pqueue:
         if self.is_eligible_to_read():
             if len(self.queue) == 0:
                 # Error
-                return "empty"
+                return None
 
-            message = self.queue[-1]  # Get the last message without removing it
+            message = self.queue.pop()  # Get the last message and remove it
             print(f"Reading message: {message}")
             return message
 
