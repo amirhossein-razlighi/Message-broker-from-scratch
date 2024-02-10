@@ -30,7 +30,7 @@ jobs:
     - name: Test server unit tests
       run: |
         cd server/tests
-        docker run --rm server_app:latest python3 -m unittest
+        python3 -m unittest
 
     - name: Test Docker Compose
       run: |
