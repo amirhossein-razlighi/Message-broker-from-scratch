@@ -28,4 +28,4 @@ jobs:
       
       - name: Deploy Application
         run: |
-          ssh -i private_key.key ubuntu@188.121.118.136 "echo 'Deployment successful!'"
+          ssh -i private_key.key ubuntu@185.97.119.74 "echo 'Deployment successful!'"
