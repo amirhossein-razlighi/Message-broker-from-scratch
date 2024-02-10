@@ -27,7 +27,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
           ssh-known-hosts: ~/.ssh/known_hosts
-          
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p $HOME/.ssh
+          ssh-keyscan 185.97.119.74 >> $HOME/.ssh/known_hosts
+
       - name: Deploy Application
         run: |
           ssh -i $HOME/.ssh/id_rsa ubuntu@185.97.119.74 "echo 'Deployment successful!'"
