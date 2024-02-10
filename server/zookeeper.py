@@ -19,13 +19,43 @@ def hash_function(key):
 
 class ZooKeeper(Broker):
     def __init__(self, host, port):
-            super().__init__(host, port)
-            self._broker_list = []
-            self._partitions = {}
-            self._broker_partitions = {}
-            self._brokers = {}  # New dictionary to map broker_id to broker
-            self._global_subscribers = []
-            self._current_broker_index = 0  # Used for round-robin
+        super().__init__(host, port)
+        self._broker_list = []
+        self._partitions = {}
+        self._broker_partitions = {}
+        self._brokers = {}  # New dictionary to map broker_id to broker
+        self._global_subscribers = []
+        self._current_broker_index = 0  # Used for round-robin
+        self.ping_addresses = {}
+        self.addresses = {}
+        self.is_active = {}
+        self.is_empty = {}
+
+    def setup_broker(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+            # TODO
+            server_socket.bind((self._host, self._port))
+            server_socket.listen(5)
+            print(f"Leader Broker listening on {self._host}:{self._port}")
+
+            while True:
+                # Accept incoming connection from a new broker
+                conn, addr = server_socket.accept()
+                print(f"New broker connected: {addr}")
+                # Start a new thread to handle the incoming connection
+                # TODO
+                thread = threading.Thread(target=self.handle_broker, args=(conn,))
+                thread.start()
+
+    def handle_broker(self, conn):
+        # Receive broker's information
+        broker_info = conn.recv(1024).decode()
+        host, port, ping_port, idf = broker_info.split(":")
+        self.addresses[idf] = (host, int(port))
+        self.ping_addresses[idf] = (host, int(ping_port))
+        print(f"Broker at {host}:{port} added to the network.")
+        conn.close()
+
 
     def add_broker(self, broker, partition, replica=None):
         message = {'type': 'add_broker', 'partition': partition, 'replica': replica}
@@ -44,7 +74,7 @@ class ZooKeeper(Broker):
 
             if partition not in self._partitions:
                 self._partitions[partition] = []
-                
+
             self._broker_list.sort()
             print(
                 f"Broker {broker.id} added at position {position} in partition {partition}"
@@ -115,8 +145,8 @@ class ZooKeeper(Broker):
         self._broker_list.remove(broker)
 
         # changes
-        if broker.id in self.brokers:
-            self.brokers.pop(broker.id)
+        if broker.id in self._brokers:
+            self._brokers.pop(broker.id)
             print(f"Broker {broker.id} removed.")
         else:
             print(f"Error: Broker {broker.id} not found.")
@@ -125,30 +155,30 @@ class ZooKeeper(Broker):
         return self._broker_list[0]
 
     def update_broker_status(self, broker_id, status):
-        if broker_id in self.brokers:
-            self.brokers[broker_id].is_up = status
+        if broker_id in self.is_active:
+            self.is_active[broker_id] = status
         else:
             print(f"Error: Broker {broker_id} not found.")
 
     def get_active_brokers(self):
-        active_brokers = [broker_id for broker_id, data in self.brokers.items() if data.is_up == 1]
+        active_brokers = [broker_id for broker_id, data in self.is_active.items() if data]
         return active_brokers
 
     def start_broker(self, broker_id):
         self.update_broker_status(broker_id, True)
-        print(f"Broker {broker.id} started.")
+        print(f"Broker {broker_id} started.")
 
     def stop_broker(self, broker_id):
         self.update_broker_status(broker_id, False)
-        print(f"Broker {broker.id} stopped.")
+        print(f"Broker {broker_id} stopped.")
 
     def consume(self):
-        for broker_id in self.brokers:
-            if not brokers[broker_id].is_empty and brokers[broker_id].is_up:
-                return brokers[broker_id]
+        for broker_id in self.is_active:
+            if not self.is_empty[broker_id] and self.is_active[broker_id]:
+                return broker_id
 
     def send_heartbeat(self, broker_id):
-        broker_address = (self.brokers[broker_id].host, self.brokers[broker_id].ping_port)
+        broker_address = (self.ping_addresses[broker_id])
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(3)
@@ -165,7 +195,7 @@ class ZooKeeper(Broker):
 
     def health_check_thread(self):
         while True:
-            for broker_id in self.brokers:
+            for broker_id in self.is_active:
                 self.send_heartbeat(broker_id)
 
             time.sleep(5)
@@ -180,15 +210,15 @@ class ZooKeeper(Broker):
             target=asyncio.run, args=(self.socket_thread(),)
         )
         socket_thread.start()
-        
+
         http_thread = threading.Thread(
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )
         http_thread.start()
-        
+
         health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
         health_check_thread.start()
-        
+
     def choose_broker_for_subscription(self, subscriber):
         broker = self._broker_list[self._current_broker_index][1]
         broker_id = broker.id
@@ -272,7 +302,6 @@ class ZooKeeper(Broker):
         # await writer.drain()
         # print("Close the connection")
         # writer.close()
-
 
 
 """

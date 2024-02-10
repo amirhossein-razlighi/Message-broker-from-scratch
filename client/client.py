@@ -79,7 +79,9 @@ def main():
     #     print("No master found")
     #     return
     host_name = os.getenv("BROKER")
-    client_socket = open_connection(host_name, port)
+    #client_socket = open_connection(host_name, port)
+    client_socket = open_connection('127.0.0.1', port)
+
     while True:
         if client_socket is None:
             print("Error occured")
