@@ -1,8 +1,8 @@
 import pickle
 import socket
 
-from server.broker import Broker
-from server.pqueue import Pqueue
+from broker import Broker
+from pqueue import Pqueue
 
 
 class Replica(Broker):
