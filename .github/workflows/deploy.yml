@@ -17,7 +17,9 @@ jobs:
         run: sudo apt-get install -y openssh-client
       
       - name: Write SSH Private Key to File
-        run: echo "${{ secrets.MY_SSH }}" > private_key.pem
+        run: |
+          echo "${{ secrets.MY_SSH }}" > private_key.pem
+          chmod 600 private_key.pem
       
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
