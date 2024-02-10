@@ -16,11 +16,14 @@ jobs:
       - name: Install SSH Client
         run: sudo apt-get install -y openssh-client
       
+      - name: Write SSH Private Key to File
+        run: echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+      
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
-          ssh-private-key: ${{ secrets.MY_SSH }}
+          ssh-private-key: private_key.pem
       
       - name: Deploy Application
         run: |
-          ssh -i $HOME/.ssh/MY_SSH.pem ubuntu@188.121.118.136 "echo 'Deployment successful!'"
+          ssh -i private_key.pem ubuntu@188.121.118.136 "echo 'Deployment successful!'"
