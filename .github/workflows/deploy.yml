@@ -46,5 +46,5 @@ jobs:
       - name: Run Docker Compose on server
         run: |
           ssh -i $HOME/.ssh/id_rsa ubuntu@185.97.117.121 << EOF
-          docker-compose -f /home/ubuntu/docker-compose.yml up -d
+          sudo docker-compose -f /home/ubuntu/docker-compose.yml up -d
           EOF
