@@ -1,16 +1,24 @@
 import asyncio
+import os, sys
+
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(parent)
 import hashlib
 import pickle
 import random
 import socket
 import time
 import threading
+import argparse
+import fastapi
+import uvicorn
 
 from broker import Broker
 import asyncio
 
-from server.Replica import Replica
-from server.pqueue import Pqueue
+from replica import Replica
+from pqueue import Pqueue
 
 
 def hash_function(key):
@@ -18,44 +26,39 @@ def hash_function(key):
 
 
 class ZooKeeper(Broker):
-    def __init__(self, host, port):
-        super().__init__(host, port)
-        self._broker_list = []
-        self._partitions = {}
-        self._broker_partitions = {}
-        self._brokers = {}  # New dictionary to map broker_id to broker
-        self._global_subscribers = []
-        self._current_broker_index = 0  # Used for round-robin
-        self.ping_addresses = {}
-        self.addresses = {}
-        self.is_active = {}
-        self.is_empty = {}
+    def __init__(self, host, socket_port, http_port, ping_port):
+            super().__init__(host, socket_port, http_port, ping_port)
+            self._broker_list = []
+            self._partitions = {}
+            self._broker_partitions = {}
+            self._brokers = {}  # New dictionary to map broker_id to broker
+            self._global_subscribers = []
+            self._current_broker_index = 0  # Used for round-robin
+            self.addresses = {}
+            self.ping_addresses = {}
 
-    def setup_broker(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-            # TODO
-            server_socket.bind((self._host, self._port))
-            server_socket.listen(5)
-            print(f"Leader Broker listening on {self._host}:{self._port}")
-
-            while True:
-                # Accept incoming connection from a new broker
-                conn, addr = server_socket.accept()
-                print(f"New broker connected: {addr}")
-                # Start a new thread to handle the incoming connection
-                # TODO
-                thread = threading.Thread(target=self.handle_broker, args=(conn,))
-                thread.start()
-
-    def handle_broker(self, conn):
+    async def handle_broker(self, reader, writer):
         # Receive broker's information
-        broker_info = conn.recv(1024).decode()
+        broker_info = (await reader.read(1024)).decode()
         host, port, ping_port, idf = broker_info.split(":")
-        self.addresses[idf] = (host, int(port))
-        self.ping_addresses[idf] = (host, int(ping_port))
+        self.addresses[idf]=(host, int(port))
+        self.addresses[idf]=(host, int(ping_port))
         print(f"Broker at {host}:{port} added to the network.")
-        conn.close()
+        writer.close()
 
+    async def start(self):
+        # Create server
+        server = await asyncio.start_server(
+            self.handle_broker, self.host, self.port
+        )
+
+        # Print server information
+        addr = server.sockets[0].getsockname()
+        print(f"Leader Broker listening on {addr}")
+
+        # Serve requests until interrupted
+        async with server:
+            await server.serve_forever()
 
     def add_broker(self, broker, partition, replica=None):
         message = {'type': 'add_broker', 'partition': partition, 'replica': replica}
@@ -74,7 +77,7 @@ class ZooKeeper(Broker):
 
             if partition not in self._partitions:
                 self._partitions[partition] = []
-
+                
             self._broker_list.sort()
             print(
                 f"Broker {broker.id} added at position {position} in partition {partition}"
@@ -145,8 +148,8 @@ class ZooKeeper(Broker):
         self._broker_list.remove(broker)
 
         # changes
-        if broker.id in self._brokers:
-            self._brokers.pop(broker.id)
+        if broker.id in self.brokers:
+            self.brokers.pop(broker.id)
             print(f"Broker {broker.id} removed.")
         else:
             print(f"Error: Broker {broker.id} not found.")
@@ -155,30 +158,30 @@ class ZooKeeper(Broker):
         return self._broker_list[0]
 
     def update_broker_status(self, broker_id, status):
-        if broker_id in self.is_active:
-            self.is_active[broker_id] = status
+        if broker_id in self.brokers:
+            self.brokers[broker_id].is_up = status
         else:
             print(f"Error: Broker {broker_id} not found.")
 
     def get_active_brokers(self):
-        active_brokers = [broker_id for broker_id, data in self.is_active.items() if data]
+        active_brokers = [broker_id for broker_id, data in self.brokers.items() if data.is_up == 1]
         return active_brokers
 
     def start_broker(self, broker_id):
         self.update_broker_status(broker_id, True)
-        print(f"Broker {broker_id} started.")
+        print(f"Broker {broker.id} started.")
 
     def stop_broker(self, broker_id):
         self.update_broker_status(broker_id, False)
-        print(f"Broker {broker_id} stopped.")
+        print(f"Broker {broker.id} stopped.")
 
     def consume(self):
-        for broker_id in self.is_active:
-            if not self.is_empty[broker_id] and self.is_active[broker_id]:
-                return broker_id
+        for broker_id in self.brokers:
+            if not brokers[broker_id].is_empty and brokers[broker_id].is_up:
+                return brokers[broker_id]
 
     def send_heartbeat(self, broker_id):
-        broker_address = (self.ping_addresses[broker_id])
+        broker_address = self.ping_addresses[broker_id]
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(3)
@@ -195,7 +198,7 @@ class ZooKeeper(Broker):
 
     def health_check_thread(self):
         while True:
-            for broker_id in self.is_active:
+            for broker_id in self.brokers:
                 self.send_heartbeat(broker_id)
 
             time.sleep(5)
@@ -210,15 +213,15 @@ class ZooKeeper(Broker):
             target=asyncio.run, args=(self.socket_thread(),)
         )
         socket_thread.start()
-
+        
         http_thread = threading.Thread(
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )
         http_thread.start()
-
+        
         health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
         health_check_thread.start()
-
+        
     def choose_broker_for_subscription(self, subscriber):
         broker = self._broker_list[self._current_broker_index][1]
         broker_id = broker.id
@@ -267,41 +270,59 @@ class ZooKeeper(Broker):
 
     # Overriding the Broker's "handle_client" method
     async def handle_client(self, reader, writer):
-        data = await reader.read(100)
-        message = data.decode()
-        addr = writer.get_extra_info("peername")
-        print(f"Received {message} from {addr}")
+        while True:
+            data = await reader.read(100)
+            message = data.decode()
+            addr = writer.get_extra_info("peername")
+            print(f"Received {message} from {addr}")
 
-        json_dict = self.extract_message(message)
-        if json_dict["type"] == "PUSH":
-            broker = self.get_broker_for_partition(json_dict["part_no"])
-            status = self._push_to_broker(broker, json_dict)
-            if status == STATUS.SUCCESS:
-                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+            json_dict = self.extract_message(message)
+            if json_dict["type"] == "PUSH":
+                broker = self.get_broker_for_partition(json_dict["part_no"])
+                status = self._push_to_broker(broker, json_dict)
+                if status == STATUS.SUCCESS:
+                    writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                else:
+                    writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                await writer.drain()
+            elif json_dict["type"] == "PULL":
+                part_no = json_dict["part_no"]
+                if part_no not in self._pqueues:
+                    # error no such queue
+                    return "Invalid"
+                message = self._read(part_no)
+            elif json_dict["type"] == "SUBSCRIBE":
+                status = self.choose_broker_for_subscription(json_dict["subscriber"])
+                if status == STATUS.SUCCESS:
+                    writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                else:
+                    writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                await writer.drain()
             else:
-                writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
-            await writer.drain()
-        elif json_dict["type"] == "PULL":
-            part_no = json_dict["part_no"]
-            if part_no not in self._pqueues:
-                # error no such queue
-                return "Invalid"
-            message = self._read(part_no)
-        elif json_dict["type"] == "SUBSCRIBE":
-            status = self.choose_broker_for_subscription(json_dict["subscriber"])
-            if status == STATUS.SUCCESS:
-                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
-            else:
-                writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
-            await writer.drain()
-        else:
-            writer.write("Invalid".encode())
+                writer.write("Invalid".encode())
 
         self._logger.info(f"Closing the connection")
         writer.close()
-        # await writer.drain()
-        # print("Close the connection")
-        # writer.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
+    parser.add_argument(
+        "--socket_port", default=8000, help="Port to bind socket connection to"
+    )
+    parser.add_argument(
+        "--http_port", default=8888, help="Port to bind https connection to"
+    )
+    parser.add_argument(
+        "--ping_port", default=7500, help="Port to bind ping connection to"
+    )
+    args = parser.parse_args()
+    print(args.host, args.socket_port, args.http_port, args.ping_port)
+
+
+    zookeeper = ZooKeeper(args.host, args.socket_port, args.http_port, args.ping_port)
+    zookeeper.run(args.host, args.http_port, args.socket_port)
 
 
 """

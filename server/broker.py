@@ -179,12 +179,21 @@ class Broker:
         async with server:
             await server.serve_forever()
 
-    def initiate_broker(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as broker_socket:
-            broker_socket.connect((self._zookeeper['host'], self._zookeeper['initialization_port']))
-            broker_info = f"{self._host}:{self._socket_port}:{self.ping_port},{self.id}"
-            broker_socket.sendall(broker_info.encode())
-            print("Broker initiated and connected to the leader.")
+    async def initiate(self):
+        # Connect to leader broker
+        reader, writer = await asyncio.open_connection(
+            self._zookeeper['host'], self._zookeeper['socket_port']
+        )
+
+        # Send broker information
+        broker_info = f"{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
+        writer.write(broker_info.encode())
+        await writer.drain()
+
+        # Close connection
+        writer.close()
+        await writer.wait_closed()
+        print("Broker initiated and connected to the leader.")
 
 
 
