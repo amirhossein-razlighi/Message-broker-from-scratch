@@ -35,3 +35,15 @@ jobs:
       - name: Deploy Application
         run: |
           ssh -i $HOME/.ssh/id_rsa ubuntu@185.97.117.121 "echo 'Deployment successful!'"
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+
+      - name: Pull and run Docker images
+        run: |
+          ssh -i $HOME/.ssh/id_rsa ubuntu@185.97.117.121 << EOF
+          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/server_app:latest
+          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/zookeeper_app:latest
+          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/client_app:latest
+          docker-compose -p "sad" up
+          EOF
