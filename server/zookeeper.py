@@ -6,12 +6,14 @@ import socket
 import time
 import threading
 import argparse
+import fastapi
+import uvicorn
 
 from broker import Broker
 import asyncio
 
-from .replica import Replica
-from .pqueue import Pqueue
+from replica import Replica
+from pqueue import Pqueue
 
 
 def hash_function(key):

@@ -1,8 +1,9 @@
 import queue
-'''
+
+"""
 partition queue
 it keeps a record of messages and other probable things
-'''
+"""
 
 
 class Pqueue:
@@ -10,6 +11,7 @@ class Pqueue:
         self.part_no = part_no
         self.is_replica = is_replica
         self.queue = []
+
     def __str__(self):
         return f"Pqueue(part_no={self.part_no}, is_replica={self.is_replica}, queue={self.queue})"
 
@@ -39,6 +41,7 @@ class Pqueue:
         print(f"Writing new message: {message}")
         self.write(message)
         return 1
+
     def become(self, new_state):
         if new_state == "replica":
             if self.is_replica:
@@ -62,5 +65,3 @@ class Pqueue:
 
         # not a replica
         return 0
-
-

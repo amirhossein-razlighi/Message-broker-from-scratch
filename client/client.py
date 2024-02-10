@@ -101,6 +101,7 @@ def main():
     #     push_message("Hello", "world")
     #     sleep(5)
 
+    """
     loop = asyncio.get_event_loop()
     loop.run_until_complete(subscribe(None))
 
@@ -117,6 +118,8 @@ def main():
         loop.run_until_complete(pull_message())
 
     client_socket.close()
+    """
+
 
 
 if __name__ == "__main__":
