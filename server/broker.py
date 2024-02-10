@@ -182,7 +182,7 @@ class Broker:
 
         async with server:
             await server.serve_forever()
-s
+
     def run(self, host=None, http_port=None, socket_port=None):
         if host is None:
             host = self._host
