@@ -28,7 +28,7 @@ jobs:
       run: docker build -t server_app:latest server/
       
     - name: Test server unit tests
-      run: docker run --rm server_app:latest python3 -m unittest discover -s server/tests
+      run: docker run --rm server_app:latest python3 -m unittest ./server/tests
 
     - name: Test Docker Compose
       run: |
