@@ -18,41 +18,41 @@ jobs:
           - 2375:2375
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
+    - name: Checkout Repository
+      uses: actions/checkout@v2
 
-      - name: Login to Docker Hub
-          run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+    - name: Login to Docker Hub
+      run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
 
-      - name: Build and push client_app Docker image
-          run: |
-            docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/client_app:latest client/
-            docker push ${{ secrets.DOCKER_HUB_USERNAME }}/client_app:latest
+    - name: Build and push client_app Docker image
+      run: |
+        docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/client_app:latest client/
+        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/client_app:latest
 
-      - name: Build and push server_app Docker image
-        run: |
-          docker build -f server/Dockerfile.broker -t ${{ secrets.DOCKER_HUB_USERNAME }}/server_app:latest server/
-          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/server_app:latest
+    - name: Build and push server_app Docker image
+      run: |
+        docker build -f server/Dockerfile.broker -t ${{ secrets.DOCKER_HUB_USERNAME }}/server_app:latest server/
+        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/server_app:latest
 
-      - name: Build and push zookeeper_app Docker image
-        run: |
-          docker build -f server/Dockerfile.zookeeper -t ${{ secrets.DOCKER_HUB_USERNAME }}/zookeeper_app:latest server/
-          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/zookeeper_app:latest
+    - name: Build and push zookeeper_app Docker image
+      run: |
+        docker build -f server/Dockerfile.zookeeper -t ${{ secrets.DOCKER_HUB_USERNAME }}/zookeeper_app:latest server/
+        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/zookeeper_app:latest
       
-      - name: Start server_app container
-        run: docker run -d --name server_app server_app:latest
+    - name: Start server_app container
+      run: docker run -d --name server_app server_app:latest
 
-      - name: Test server unit tests
-        run: |
-          docker exec server_app sh -c "cd tests/ && python3 -m unittest test_api && python3 -m unittest test_push"
+    - name: Test server unit tests
+      run: |
+        docker exec server_app sh -c "cd tests/ && python3 -m unittest test_api && python3 -m unittest test_push"
 
-      - name: Stop and remove server_app container
-        run: |
-          docker stop server_app
-          docker rm server_app
+    - name: Stop and remove server_app container
+      run: |
+        docker stop server_app
+        docker rm server_app
 
-      - name: Test Docker Compose
-        run: |
-          docker-compose -f ./docker-compose.yml -p "sad" up -d
-          sleep 35
-          docker-compose -f ./docker-compose.yml -p "sad" down
+    - name: Test Docker Compose
+      run: |
+        docker-compose -f ./docker-compose.yml -p "sad" up -d
+        sleep 35
+        docker-compose -f ./docker-compose.yml -p "sad" down
