@@ -25,7 +25,10 @@ jobs:
       run: docker build -t client_app:latest client/
 
     - name: Build server_app Docker image
-      run: docker build -t server_app:latest server/
+      run: docker build -f Dockerfile.broker -t server_app:latest server/
+    
+    - name: Build zookeeper_app Docker image
+      run: docker build -f Dockerfile.zookeeper -t zookeeper_app:latest server/
       
     - name: Start server_app container
       run: docker run -d --name server_app server_app:latest
