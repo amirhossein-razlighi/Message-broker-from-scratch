@@ -27,9 +27,17 @@ jobs:
     - name: Build server_app Docker image
       run: docker build -t server_app:latest server/
       
+    - name: Start server_app container
+      run: docker run -d --name server_app server_app:latest
+
     - name: Test server unit tests
       run: |
-        docker exec -it server_app:latest sh -c "cd server/tests && python3 -m unittest"
+        docker exec -it server_app sh -c "cd server/tests && python3 -m unittest"
+
+    - name: Stop and remove server_app container
+      run: |
+        docker stop server_app
+        docker rm server_app
 
     - name: Test Docker Compose
       run: |
