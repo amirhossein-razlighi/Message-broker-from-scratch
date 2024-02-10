@@ -3,9 +3,10 @@ version: '3.8'
 volumes:
   prometheus_data:
   grafana_data:
-services:
+
+services:  
   # prometheus:
-  #   image: prometheus:2.34.0
+  #   image: prom/prometheus:latest
   #   volumes:
   #     - ./prometheus:/etc/prometheus/
   #     - prometheus_data:/prometheus
@@ -19,8 +20,39 @@ services:
   #     - "--web.console.templates=/usr/share/prometheus/consoles"
   #     - "--web.enable-lifecycle"
   #   restart: always
-  #   network_mode: "host"
+  #   ports:
+  #     - 9090:9090
+  #   networks:
+  #     - local
+    # network_mode: "host"
 
+  node_exporter:
+    image: prom/node-exporter:latest
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - 9100:9100
+    networks:
+      - local
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: always
+    networks:
+      - local
+    # network_mode: "host"
+ 
   brokers:
     image: amirhosseinrazlighi/server_app:latest
     deploy:
@@ -39,7 +71,7 @@ services:
       - ZOOKEEPER=sad-zookeepers-1
 
   zookeepers:
-    image: amirhosseinrazlighi/zookeeper_app:latest
+    image: zookeeper_app:latest
     deploy:
       mode: replicated
       replicas: 1
