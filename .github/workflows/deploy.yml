@@ -30,7 +30,6 @@ jobs:
 
       - name: Add server to known hosts
         run: |
-          mkdir -p $HOME/.ssh
           ssh-keyscan 185.97.119.74 >> $HOME/.ssh/known_hosts
 
       - name: Deploy Application
