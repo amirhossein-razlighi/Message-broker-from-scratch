@@ -7,11 +7,10 @@ import threading
 from time import sleep
 import asyncio
 
-sys.path.append("../../")
 sys.path.append("../")
 
 import status
-from server.broker import Broker
+from broker import Broker
 
 
 class TestPush(unittest.TestCase):

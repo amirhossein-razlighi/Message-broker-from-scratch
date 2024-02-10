@@ -4,10 +4,9 @@ from time import sleep
 import sys
 import threading
 
-sys.path.append("../../")
 sys.path.append("../")
 
-from server.broker import Broker
+from broker import Broker
 
 class TestAPI(unittest.TestCase):
     def test_api_sanity(self):
