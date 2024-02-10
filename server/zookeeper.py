@@ -5,12 +5,13 @@ import random
 import socket
 import time
 import threading
+import argparse
 
 from broker import Broker
 import asyncio
 
-from server.Replica import Replica
-from server.pqueue import Pqueue
+from .replica import Replica
+from .pqueue import Pqueue
 
 
 def hash_function(key):
@@ -18,8 +19,8 @@ def hash_function(key):
 
 
 class ZooKeeper(Broker):
-    def __init__(self, host, port):
-            super().__init__(host, port)
+    def __init__(self, host, socket_port, http_port, ping_port):
+            super().__init__(host, socket_port, http_port, ping_port)
             self._broker_list = []
             self._partitions = {}
             self._broker_partitions = {}
@@ -237,42 +238,59 @@ class ZooKeeper(Broker):
 
     # Overriding the Broker's "handle_client" method
     async def handle_client(self, reader, writer):
-        data = await reader.read(100)
-        message = data.decode()
-        addr = writer.get_extra_info("peername")
-        print(f"Received {message} from {addr}")
+        while True:
+            data = await reader.read(100)
+            message = data.decode()
+            addr = writer.get_extra_info("peername")
+            print(f"Received {message} from {addr}")
 
-        json_dict = self.extract_message(message)
-        if json_dict["type"] == "PUSH":
-            broker = self.get_broker_for_partition(json_dict["part_no"])
-            status = self._push_to_broker(broker, json_dict)
-            if status == STATUS.SUCCESS:
-                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+            json_dict = self.extract_message(message)
+            if json_dict["type"] == "PUSH":
+                broker = self.get_broker_for_partition(json_dict["part_no"])
+                status = self._push_to_broker(broker, json_dict)
+                if status == STATUS.SUCCESS:
+                    writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                else:
+                    writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                await writer.drain()
+            elif json_dict["type"] == "PULL":
+                part_no = json_dict["part_no"]
+                if part_no not in self._pqueues:
+                    # error no such queue
+                    return "Invalid"
+                message = self._read(part_no)
+            elif json_dict["type"] == "SUBSCRIBE":
+                status = self.choose_broker_for_subscription(json_dict["subscriber"])
+                if status == STATUS.SUCCESS:
+                    writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                else:
+                    writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                await writer.drain()
             else:
-                writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
-            await writer.drain()
-        elif json_dict["type"] == "PULL":
-            part_no = json_dict["part_no"]
-            if part_no not in self._pqueues:
-                # error no such queue
-                return "Invalid"
-            message = self._read(part_no)
-        elif json_dict["type"] == "SUBSCRIBE":
-            status = self.choose_broker_for_subscription(json_dict["subscriber"])
-            if status == STATUS.SUCCESS:
-                writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
-            else:
-                writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
-            await writer.drain()
-        else:
-            writer.write("Invalid".encode())
+                writer.write("Invalid".encode())
 
         self._logger.info(f"Closing the connection")
         writer.close()
-        # await writer.drain()
-        # print("Close the connection")
-        # writer.close()
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
+    parser.add_argument(
+        "--socket_port", default=8000, help="Port to bind socket connection to"
+    )
+    parser.add_argument(
+        "--http_port", default=8888, help="Port to bind https connection to"
+    )
+    parser.add_argument(
+        "--ping_port", default=7500, help="Port to bind ping connection to"
+    )
+    args = parser.parse_args()
+    print(args.host, args.socket_port, args.http_port, args.ping_port)
+
+
+    zookeeper = ZooKeeper(args.host, args.socket_port, args.http_port, args.ping_port)
+    zookeeper.run(args.host, args.http_port, args.socket_port)
 
 
 """
