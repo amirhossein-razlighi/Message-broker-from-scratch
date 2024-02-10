@@ -18,7 +18,7 @@ jobs:
       
       - name: Write SSH Private Key to File
         run: |
-          echo "${{ secrets.MY_SSH }}" > private_key.pem
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
           chmod 600 private_key.pem
       
       - name: Set up SSH
