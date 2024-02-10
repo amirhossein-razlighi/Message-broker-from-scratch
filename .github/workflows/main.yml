@@ -29,4 +29,4 @@ jobs:
 
     - name: Test Docker Compose
       run: |
-        docker-compose -f ./docker-compose.yml -p "sad" up --exit-code-from sad-clients-1
+        docker-compose -f ./docker-compose.yml -p "sad" up --exit-code-from clients brokers
