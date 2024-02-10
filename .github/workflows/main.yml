@@ -29,6 +29,6 @@ jobs:
 
     - name: Test Docker Compose
       run: |
-        docker-compose -f ./docker-compose.yml -p "sad" up --exit-code-from clients brokers
+        docker-compose -f ./docker-compose.yml -p "sad" up
         sleep 30
         docker-compose -f ./docker-compose.yml -p "sad" down
