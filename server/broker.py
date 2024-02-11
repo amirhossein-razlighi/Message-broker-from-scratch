@@ -1,4 +1,5 @@
 import asyncio
+import os
 import queue
 import socket
 import json
@@ -28,15 +29,13 @@ class Broker:
         self._socket_port = int(socket_port)
         self._http_port = http_port
         self._zookeeper = {
-            "host": None,
-            "http_port": None,
-            "socket_port": None,
-            "initialization_port": None,
+            "host": os.getenv('ZOOKEEPER'),
+            "http_port": 8888,
+            "socket_port": 8000,
+            "ping_port": 7500,
         }
         self._create_pqueue(0, False)
         self._broker_subscribers = []
-        self.is_up = True
-        self.is_empty = False
         self._logger = logging.getLogger(__name__)
         self._observers = set()
         self._is_replica = False
@@ -209,6 +208,7 @@ class Broker:
             http_port = self._http_port
         if socket_port is None:
             socket_port = self._socket_port
+
 
         app = fastapi.FastAPI(port=int(http_port), host=host)
 

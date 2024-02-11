@@ -37,6 +37,7 @@ class ZooKeeper(Broker):
         self.addresses = {}
         self.ping_addresses = {}
         self.is_up = {}
+        self.is_empty = {}
 
     # async def handle_broker(self, reader, writer):
     #     # Receive broker's information
@@ -177,9 +178,9 @@ class ZooKeeper(Broker):
         print(f"Broker {broker_id} stopped.")
 
     def consume(self):
-        for broker_id in self.brokers:
-            if not brokers[broker_id].is_empty and brokers[broker_id].is_up:
-                return brokers[broker_id]
+        for broker_id in self.is_up:
+            if self.is_empty[broker_id] == 0 and self.is_up[broker_id] == 1:
+                return broker_id
 
     def send_heartbeat(self, broker_id):
         broker_address = self.ping_addresses[broker_id]
@@ -291,6 +292,7 @@ class ZooKeeper(Broker):
                 self.addresses[idf] = (host, int(port))
                 self.addresses[idf] = (host, int(ping_port))
                 self.is_up[idf] = 1
+                self.is_empty[idf] = 1
                 print(f"Broker at {host}:{port} added to the network.")
             else:
                 addr = writer.get_extra_info("peername")
@@ -298,10 +300,11 @@ class ZooKeeper(Broker):
 
                 json_dict = self.extract_message(message)
                 if json_dict["type"] == "PUSH":
-                    broker = self.hash_message_key(json_dict["key"])
-                    status = self._push_to_broker(broker, json_dict)
+                    broker_id = self.hash_message_key(json_dict["key"])
+                    status = self._push_to_broker(broker_id, json_dict)
                     if status == STATUS.SUCCESS:
                         writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                        self.is_empty[broker_id] = 0
                     else:
                         writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
                     await writer.drain()
