@@ -112,7 +112,8 @@ def receive_message(f: Callable):
             data = client_socket.recv(1024).decode()
             if not data == "No message":
                 data = data.strip()
-                data = f(data)
+                if f is not None:
+                    data = f(data)
             print(f"Received from server: {repr(data)}")
         except:
             continue
