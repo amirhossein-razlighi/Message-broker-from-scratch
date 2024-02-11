@@ -21,26 +21,66 @@ services:
       - "--web.external-url=http://127.0.0.1:9090/prometheus"
       - "--web.listen-address=0.0.0.0:9090"
     # restart: always
-      
 
+  node_exporter:
+    image: prom/node-exporter:latest
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - 9100:9100
+    networks:
+      - local
 
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: always
+    networks:
+      - local
+    # network_mode: "host"
+ 
   brokers:
-    image: server_app:latest
+    image: amirhosseinrazlighi/server_app:latest
     deploy:
       mode: replicated
       replicas: 3
+    depends_on:
+      - zookeepers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 30s
       timeout: 10s
       retries: 3
-    # command: 
-    #   - "--http_port=8001"
+    networks:
+      - local
+    environment:
+      - ZOOKEEPER=sad-zookeepers-1
 
-  
+  zookeepers:
+    image: amirhosseinrazlighi/zookeeper_app:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+    networks:
+      - local
 
   clients:
-    image: client_app:latest
+    image: amirhosseinrazlighi/client_app:latest
     deploy:
       mode: replicated
       replicas: 1
@@ -48,8 +88,13 @@ services:
     depends_on:
       brokers:
         condition: service_healthy
+      zookeepers:
+        condition: service_healthy
     environment:
       - BROKER=sad-brokers-1
+      - ZOOKEEPER=sad-zookeepers-1
+    networks:
+      - local
 
 
 networks:

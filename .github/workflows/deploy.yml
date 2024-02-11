@@ -1,0 +1,50 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Install SSH Client
+        run: sudo apt-get install -y openssh-client
+      
+      - name: Write SSH private key to id_rsa
+        run: |
+          mkdir -p $HOME/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > $HOME/.ssh/id_rsa
+          chmod 600 $HOME/.ssh/id_rsa
+      
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-known-hosts: ~/.ssh/known_hosts
+
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan 185.97.117.121 >> $HOME/.ssh/known_hosts
+
+      - name: Deploy Application
+        run: |
+          ssh -i $HOME/.ssh/id_rsa ubuntu@185.97.117.121 "echo 'Deployment successful!'"
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+
+      - name: Copy docker compose file
+        run: |
+          scp -i $HOME/.ssh/id_rsa docker-compose.yml ubuntu@185.97.117.121:/home/ubuntu/
+
+      - name: Run Docker Compose on server
+        run: |
+          ssh -i $HOME/.ssh/id_rsa ubuntu@185.97.117.121 << EOF
+          sudo docker-compose -f /home/ubuntu/docker-compose.yml up -d
+          EOF
