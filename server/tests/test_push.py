@@ -21,7 +21,7 @@ class TestPush(unittest.TestCase):
         zookeeper_thread.start()
         sleep(1)
         broker = Broker("127.0.0.1", 8004, 8005, 8006)
-        broker._zookeeper["host"] = "127.0.0.1"
+        broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
