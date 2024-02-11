@@ -22,13 +22,14 @@ def hash_function(key):
 
 class ZooKeeper(Broker):
     def __init__(self, host, socket_port, http_port, ping_port):
-            super().__init__(host, socket_port, http_port, ping_port)
-            self._broker_list = []
-            self._partitions = {}
-            self._broker_partitions = {}
-            self._brokers = {}  # New dictionary to map broker_id to broker
-            self._global_subscribers = []
-            self._current_broker_index = 0  # Used for round-robin
+        super().__init__(host, socket_port, http_port, ping_port)
+        self._broker_list = []
+        self._partitions = {}
+        self._broker_partitions = {}
+        self._brokers = {}  # New dictionary to map broker_id to broker
+        self._global_subscribers = []
+        self._current_broker_index = 0  # Used for round-robin
+        self.is_zookeeper = True
 
     def add_broker(self, broker, partition, replica=None):
         message = {'type': 'add_broker', 'partition': partition, 'replica': replica}

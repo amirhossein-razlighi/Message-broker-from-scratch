@@ -40,6 +40,7 @@ class Broker:
         self._observers = set()
         self._is_replica = False
         self.ping_port = ping_port
+        self.is_zookeeper = False
     
     def __str__(self):
         return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica}, observers={self._observers})"
@@ -204,6 +205,13 @@ class Broker:
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )
         http_thread.start()
+
+    # metrics section
+    def is_zookeeper(self):
+        return self.is_zookeeper
+    
+    
+        
 
 
 if __name__ == "__main__":
