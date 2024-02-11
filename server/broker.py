@@ -205,7 +205,7 @@ class Broker:
         # Create socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.connect((self._zookeeper['host'], self._zookeeper['socket_port']))
-            broker_info = f"{self._host}:{self._socket_port}"
+            broker_info = f"initiate :{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
             client_socket.sendall(broker_info.encode())
             print("Broker initiated and connected to the leader.")
 

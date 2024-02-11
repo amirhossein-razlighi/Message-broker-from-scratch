@@ -10,12 +10,14 @@ import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import random
+import sys
 
+sys.path.append("../")
 executor = ThreadPoolExecutor(max_workers=1)
 
-from server.broker import Broker
-from server.replica import Replica
-from server.zookeeper import ZooKeeper
+# from server.broker import Broker
+# from server.replica import Replica
+# from server.zookeeper import ZooKeeper
 
 zookeeper_ips = ['127.0.0.1']
 port = 8000
@@ -107,17 +109,16 @@ async def main():
     #     print("No master found")
     #     return
     
-    host_name = os.getenv("BROKER")
+    host_name = os.getenv("ZOOKEEPER")
     client_socket = open_connection(host_name, port)
 
-    # while True:
-    #    if client_socket is None:
-    #       print("Error occured")
+    await push_message("1", "hello")
+    await push_message("2", "world")
+    await push_message("3", "bye")
 
-    #     push_message("Hello", "world")
-    #     sleep(5)
+    client_socket.close()
 
-
+    """ TEST SUBSCRIBE/PUSH/PULL
     loop = asyncio.get_event_loop()
     loop.run_until_complete(subscribe(None))
 
@@ -137,6 +138,7 @@ async def main():
         print("Pulling messages")
         await pull_message()
         break
+    """
 
     """ Interactive TEST:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

@@ -2,7 +2,7 @@ import asyncio
 import json
 import os, sys
 
-from server.status import STATUS, SOCKET_STATUS
+from status import STATUS, SOCKET_STATUS
 
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
@@ -121,7 +121,6 @@ class ZooKeeper(Broker):
         while True:
             for broker_id in self.ping_addresses:
                 self.send_heartbeat(broker_id)
-
             time.sleep(5)
 
     def run(self, host=None, http_port=None, socket_port=None):
@@ -195,13 +194,30 @@ class ZooKeeper(Broker):
             if state == 1:
                 active_brokers.append(broker_id)
         partition_index = hashed_value % len(active_brokers)
-        return active_brokers[partition_index]
+        res = active_brokers[partition_index]
+        return res
+
+    def _push(self, json_dict):
+        broker_id = self.hash_message_key(json_dict["key"])
+        status = self._push_pull_broker(broker_id, json_dict)
+        if status == STATUS.SUCCESS:
+            self.is_empty[broker_id] = 0
+            return STATUS.SUCCESS
+        else:
+            return STATUS.ERROR
 
     def _push_pull_broker(self, broker_id, json_dict):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect(self.addresses[broker_id])
+            print(f"Connecting to {self.addresses[broker_id]}")
+            print(f"Sending {json.dumps(json_dict)}")
+            try:
+                s.connect(self.addresses[broker_id])
+            except Exception as e:
+                print(f"Error connecting to {self.addresses[broker_id]}: {e}")
+                return STATUS.ERROR
+            print("Connected")
             s.sendall(json.dumps(json_dict).encode())
-            data = s.recv(1024)
+            data = s.recv(1024).decode()
             print("Received", repr(data))
             if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
                 return STATUS.SUCCESS
@@ -224,8 +240,12 @@ class ZooKeeper(Broker):
         while True:
             data = await reader.read(100)
             message = data.decode()
+            host = writer.get_extra_info('peername')[0]
+            port = writer.get_extra_info('peername')[1]
+            print(f"Received {message} from {(host, port)}")
             if message.startswith("initiate"):
-                _, host, port, ping_port, idf = message.split(":")
+                a, b, port, ping_port, idf = message.split(":")
+                host = socket.gethostbyname(host)
                 self.addresses[idf] = (host, int(port))
                 self.ping_addresses[idf] = (host, int(ping_port))
                 self.is_up[idf] = 1
@@ -272,11 +292,10 @@ class ZooKeeper(Broker):
 
                 json_dict = self.extract_message(message)
                 if json_dict["type"] == "PUSH":
-                    broker_id = self.hash_message_key(json_dict["key"])
-                    status = self._push_pull_broker(broker_id, json_dict)
+                    status = self._push(json_dict)
+                    print(f"Status: {status}")
                     if status == STATUS.SUCCESS:
                         writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
-                        self.is_empty[broker_id] = 0
                     else:
                         writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
                     await writer.drain()
