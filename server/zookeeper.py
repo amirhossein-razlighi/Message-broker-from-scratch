@@ -20,7 +20,6 @@ import uvicorn
 from broker import Broker
 import asyncio
 
-from replica import Replica
 from pqueue import Pqueue
 
 
