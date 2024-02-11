@@ -196,7 +196,18 @@ class ZooKeeper(Broker):
         partition_index = hashed_value % len(active_brokers)
         return active_brokers[partition_index]
 
-    def _push_to_broker(self, broker_id, json_dict):
+    def _push_pull_broker(self, broker_id, json_dict):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect(self.addresses[broker_id])
+            s.sendall(json.dumps(json_dict).encode())
+            data = s.recv(1024)
+            print("Received", repr(data))
+            if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
+                return STATUS.SUCCESS
+            else:
+                return STATUS.ERROR
+
+    def _pull_from_broker(self, broker_id, json_dict):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect(self.addresses[broker_id])
             s.sendall(json.dumps(json_dict).encode())
@@ -215,7 +226,7 @@ class ZooKeeper(Broker):
             if message.startswith("initiate"):
                 _, host, port, ping_port, idf = message.split(":")
                 self.addresses[idf] = (host, int(port))
-                self.addresses[idf] = (host, int(ping_port))
+                self.ping_addresses[idf] = (host, int(ping_port))
                 self.is_up[idf] = 1
                 self.is_empty[idf] = 1
                 print(f"Broker at {host}:{port} added to the network.")
@@ -261,7 +272,7 @@ class ZooKeeper(Broker):
                 json_dict = self.extract_message(message)
                 if json_dict["type"] == "PUSH":
                     broker_id = self.hash_message_key(json_dict["key"])
-                    status = self._push_to_broker(broker_id, json_dict)
+                    status = self._push_pull_broker(broker_id, json_dict)
                     if status == STATUS.SUCCESS:
                         writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
                         self.is_empty[broker_id] = 0
@@ -269,11 +280,15 @@ class ZooKeeper(Broker):
                         writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
                     await writer.drain()
                 elif json_dict["type"] == "PULL":
-                    part_no = json_dict["part_no"]
-                    if part_no not in self._pqueues:
-                        # error no such queue
-                        return "Invalid"
-                    message = self._read(part_no)
+                    broker_id = self.consume()
+                    status = self._push_pull_broker(broker_id, json_dict)
+                    if status == STATUS.SUCCESS:
+                        writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                    else:
+                        writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                        self.is_empty[broker_id] = 0
+                    await writer.drain()
+
                 elif json_dict["type"] == "SUBSCRIBE":
                     status = self.choose_broker_for_subscription(json_dict["subscriber"])
                     if status == STATUS.SUCCESS:

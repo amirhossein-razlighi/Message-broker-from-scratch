@@ -15,8 +15,8 @@ import random
 
 app = None
 
-
 uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
+
 
 class Broker:
     def __init__(self, host, socket_port, http_port, ping_port):
@@ -40,7 +40,7 @@ class Broker:
         self._observers = set()
         self._is_replica = False
         self.ping_port = ping_port
-    
+
     def __str__(self):
         return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica}, observers={self._observers})"
 
@@ -56,7 +56,6 @@ class Broker:
             if observer._is_replica and part_no in observer._pqueues:
                 print(f"Updating observer {observer.id}...")
                 observer.update(self, part_no, message)
-
 
     def _create_pqueue(self, part_no, is_replica):
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
@@ -108,7 +107,7 @@ class Broker:
         message = self._pqueues[part_no].write_new_message(json_dict["value"])
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
-        self.is_empty = 0 #TODO ?
+        self.is_empty = 0  # TODO ?
         self.notify(part_no, message)
         return STATUS.SUCCESS
 
@@ -118,12 +117,13 @@ class Broker:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
         except:
+
             part_no = random.choice(list(self._pqueues.keys()))
             self._logger.info(f"Selected part_no {part_no}")
-        
+
         self._logger.info(f"Reading message from part_no {part_no}")
         return self._read(part_no)
-        
+
     def _subscribe(self, subscriber, broker_id, writer):
         subscriber = {"host": subscriber[0], "socket_port": subscriber[1]}
         self._logger.info(f"Received SUBSCRIBE message from {subscriber}")
@@ -183,32 +183,22 @@ class Broker:
         async with server:
             await server.serve_forever()
 
-    async def initiate(self):
-        # Connect to leader broker
-        reader, writer = await asyncio.open_connection(
-            self._zookeeper['host'], self._zookeeper['socket_port']
-        )
-
-        # Send broker information
-        broker_info = f"initiate me :{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
-        writer.write(broker_info.encode())
-        await writer.drain()
-
-        # Close connection
-        writer.close()
-        await writer.wait_closed()
-        print("Broker initiated and connected to the leader.")
-
-
+    def initiate(self):
+        # Create socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((self._zookeeper['host'], self._zookeeper['socket_port']))
+            broker_info = f"{self._host}:{self._socket_port}"
+            client_socket.sendall(broker_info.encode())
+            print("Broker initiated and connected to the leader.")
 
     def run(self, host=None, http_port=None, socket_port=None):
+        self.initiate()
         if host is None:
             host = self._host
         if http_port is None:
             http_port = self._http_port
         if socket_port is None:
             socket_port = self._socket_port
-
 
         app = fastapi.FastAPI(port=int(http_port), host=host)
 
@@ -239,7 +229,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     print(args.host, args.socket_port, args.http_port, args.ping_port)
-
 
     broker = Broker(args.host, args.socket_port, args.http_port, args.ping_port)
     broker.run(args.host, args.http_port, args.socket_port)
