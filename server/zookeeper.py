@@ -267,7 +267,7 @@ class ZooKeeper(Broker):
                 self._broker_partitions[broker_id] = partition
                 self._broker_list.sort()
                 # replica
-                new_broker = Replica(host, port)
+                new_broker = Pqueue(broker_id, is_replica=True)
                 other_partitions = [p for p in self._partitions if p != partition]
                 if not other_partitions:
                     print("No other partitions available to add the replica.")
