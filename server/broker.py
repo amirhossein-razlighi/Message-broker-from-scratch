@@ -164,7 +164,7 @@ class Broker:
             elif json_dict["type"] == "PULL":
                 message = self._pull(json_dict)
                 response = message + "\n" if message is not None else "No message\n"
-                writer.write(message.encode())
+                writer.write(response.encode())
                 await writer.drain()
             elif json_dict["type"] == "SUBSCRIBE":
                 status = self._subscribe(addr, json_dict["broker_id"], writer)
