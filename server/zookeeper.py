@@ -24,8 +24,7 @@ from replica import Replica
 from pqueue import Pqueue
 
 
-def hash_function(key):
-    return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16)
+
 
 
 class ZooKeeper(Broker):
@@ -41,6 +40,7 @@ class ZooKeeper(Broker):
         self.ping_addresses = {}
         self.is_up = {}
         self.is_empty = {}
+        self.first_replica=[]
 
     # async def handle_broker(self, reader, writer):
     #     # Receive broker's information
@@ -83,6 +83,9 @@ class ZooKeeper(Broker):
             self.is_up[broker_id] = status
         else:
             print(f"Error: Broker {broker_id} not found.")
+
+    def hash_function(self,key):
+        return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (len(self._brokers)+1)
 
     def get_active_brokers(self):
         active_brokers = [broker_id for broker_id, data in self.is_up.items() if data == 1]
@@ -252,7 +255,7 @@ class ZooKeeper(Broker):
                 self.is_empty[idf] = 1
                 print(f"Broker at {host}:{port} added to the network.")
                 broker_id = idf
-                partition = hash_function(broker_id)
+                partition = self.hash_function(broker_id)
                 self._broker_list.append((partition, broker_id))
 
                 if partition not in self._partitions:
@@ -269,17 +272,47 @@ class ZooKeeper(Broker):
                 other_partitions = [p for p in self._partitions if p != partition]
                 if not other_partitions:
                     print("No other partitions available to add the replica.")
-                    return
-                replica_partition = random.choice(other_partitions)
-                if replica_partition not in self._partitions:
-                    self._partitions[replica_partition] = []
-                new_replica = Pqueue(replica_partition, is_replica=True)
-                self._partitions[replica_partition].append(new_replica)
-                self._broker_partitions[new_replica] = replica_partition
-                broker = self._brokers[broker_id]
-                broker.register(new_replica)  # register new_broker as an observer to the original broker
-                print("Replica added successfully")
-                print('Broker added successfully')
+                    if len(self.first_replica) == 0:
+                        my_tuple = (broker_id, partition)
+                        self.first_replica.append(my_tuple)
+                if len(self._broker_list) == 2:
+                    replica_partition = random.choice(other_partitions)
+                    if replica_partition not in self._partitions:
+                        self._partitions[replica_partition] = []
+                    new_replica = Pqueue(replica_partition, is_replica=True)
+                    self._partitions[replica_partition].append(new_replica)
+                    self._broker_partitions[new_replica] = replica_partition
+                    broker = self._brokers[broker_id]
+                    broker.register(new_replica)  # register new_broker as an observer to the original broker
+                    # add the first replica as well
+                    my_tuple = self.first_replica[0]
+                    # Get the first and second element of the tuple
+                    first_broker_id = my_tuple[0]
+                    first_partition = my_tuple[1]
+                    other_partitions = [p for p in self._partitions if p != first_partition]
+                    replica_partition = random.choice(other_partitions)
+                    if replica_partition not in self._partitions:
+                        self._partitions[replica_partition] = []
+                    new_replica = Pqueue(replica_partition, is_replica=True)
+                    self._partitions[replica_partition].append(new_replica)
+                    self._broker_partitions[new_replica] = replica_partition
+                    broker = self._brokers[first_broker_id]
+                    broker.register(new_replica)
+                    print("Replica added successfully")
+                    print('Broker added successfully')
+                    print("Replica added successfully")
+                    print('Broker added successfully')
+                if len(self._broker_list) > 2:
+                    replica_partition = random.choice(other_partitions)
+                    if replica_partition not in self._partitions:
+                        self._partitions[replica_partition] = []
+                    new_replica = Pqueue(replica_partition, is_replica=True)
+                    self._partitions[replica_partition].append(new_replica)
+                    self._broker_partitions[new_replica] = replica_partition
+                    broker = self._brokers[broker_id]
+                    broker.register(new_replica)  # register new_broker as an observer to the original broker
+                    print("Replica added successfully")
+                    print('Broker added successfully')
 
             else:
                 addr = writer.get_extra_info("peername")
