@@ -39,17 +39,17 @@ jobs:
         docker build -f server/Dockerfile.zookeeper -t ${{ secrets.DOCKER_HUB_USERNAME }}/zookeeper_app:latest server/
         docker push ${{ secrets.DOCKER_HUB_USERNAME }}/zookeeper_app:latest
 
-      - name: Start server_app container
-        run: docker run -d --name server_app ${{ secrets.DOCKER_HUB_USERNAME }}/server_app:latest
-
-      - name: Test server unit tests
-        run: |
-          docker exec server_app sh -c "cd tests/ && python3 -m unittest test_api"
-
-      - name: Stop and remove server_app container
-        run: |
-          docker stop server_app
-          docker rm server_app
+    - name: Start server_app container
+      run: docker run -d --name server_app ${{ secrets.DOCKER_HUB_USERNAME }}/server_app:latest
+    
+    - name: Test server unit tests
+      run: |
+        docker exec server_app sh -c "cd tests/ && python3 -m unittest test_api"
+    
+    - name: Stop and remove server_app container
+      run: |
+        docker stop server_app
+        docker rm server_app
 
     - name: Test Docker Compose
       run: |
