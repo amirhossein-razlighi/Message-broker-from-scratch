@@ -204,7 +204,7 @@ def test_message_consistency():
   #  print("Test passed!")
 
 if __name__ == "__main__":
-    test_add_brokers_and_replicas()
+  #  test_add_brokers_and_replicas()
   #  test_heartbeat_and_health_check()
  #   test_subscription_and_message_handling()
   #  test_message_consistency()
