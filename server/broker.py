@@ -244,16 +244,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument(
-        "--socket_port", default=8000, help="Port to bind socket connection to"
+        "--socket_port", default=8001, help="Port to bind socket connection to"
     )
     parser.add_argument(
-        "--http_port", default=8888, help="Port to bind https connection to"
+        "--http_port", default=8002, help="Port to bind https connection to"
     )
     parser.add_argument(
-        "--ping_port", default=7500, help="Port to bind ping connection to"
+        "--ping_port", default=8003, help="Port to bind ping connection to"
     )
     args = parser.parse_args()
     print(args.host, args.socket_port, args.http_port, args.ping_port)
 
     broker = Broker(args.host, args.socket_port, args.http_port, args.ping_port)
+    broker._zookeeper["host"] = "127.0.0.1"
     broker.run(args.host, args.http_port, args.socket_port)

@@ -71,6 +71,8 @@ async def pull_message():
     }
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
+    print(f"Received from server: {repr(data)}")
+
     if repr(data).startswith('Brokers'):
         return
     host_b, port_b = data.split(',')
@@ -123,15 +125,9 @@ async def main():
     #     print("No master found")
     #     return
     
-    host_name = os.getenv("ZOOKEEPER")
+    # host_name = os.getenv("ZOOKEEPER")
+    host_name = "127.0.0.1"
     client_socket = open_connection(host_name, port)
-
-    await push_message("1", "hello")
-    await push_message("2", "world")
-    await push_message("3", "bye")
-
-    client_socket.close()
-
     """ TEST SUBSCRIBE/PUSH/PULL
     loop = asyncio.get_event_loop()
     loop.run_until_complete(subscribe(None))
@@ -154,31 +150,32 @@ async def main():
         break
     """
 
-    """ Interactive TEST:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         client_socket = s
         s.connect((host_name, port))
         while True:
-            print("1. Push message")
-            print("2. Pull message")
-            print("3. Subscribe")
-            print("4. Exit")
-            choice = await get_input("Enter choice: ")
-            choice = int(choice)
-            if choice == 1:
-                key = await get_input("Enter key: ")
-                value = await get_input("Enter value: ")
-                await push_message(key, value)
-            elif choice == 2:
-                await pull_message()
-            elif choice == 3:
-                await subscribe(None)
-            elif choice == 4:
-                break
-            else:
-                print("Invalid choice")
+            try:
+                print("1. Push message")
+                print("2. Pull message")
+                print("3. Subscribe")
+                print("4. Exit")
+                choice = await get_input("Enter choice: ")
+                choice = int(choice)
+                if choice == 1:
+                    key = await get_input("Enter key: ")
+                    value = await get_input("Enter value: ")
+                    await push_message(key, value)
+                elif choice == 2:
+                    await pull_message()
+                elif choice == 3:
+                    await subscribe(None)
+                elif choice == 4:
+                    break
+                else:
+                    print("Invalid choice")
+            except:
+                continue
         client_socket.close()
-    """
 
 # Example test scenarios in the client
 

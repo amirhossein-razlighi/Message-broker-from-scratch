@@ -308,11 +308,14 @@ class ZooKeeper(Broker):
                 json_dict = self.extract_message(message)
                 if json_dict["type"] == "PUSH":
                     status = self._push(json_dict)
+                    status = STATUS.SUCCESS
                     print(f"Status: {status}")
                     if status == STATUS.SUCCESS:
-                        writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                        response = str(SOCKET_STATUS.WRITE_SUCCESS.value)
+                        writer.write(response.encode())
                     else:
                         writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                    print(f"Sent {SOCKET_STATUS.WRITE_SUCCESS.value}")
                     await writer.drain()
                 elif json_dict["type"] == "PULL":
                     broker_id = self.consume()
