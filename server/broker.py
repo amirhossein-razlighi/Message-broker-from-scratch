@@ -196,7 +196,7 @@ class Broker:
         response_200_metrics.inc()
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
     
-    def gen_metrics(self):
+    async def gen_metrics(self):
         self._logger.info(f"inside gen_metrics")
         registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(registry)
