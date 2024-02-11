@@ -13,7 +13,7 @@ import logging
 from status import STATUS, SOCKET_STATUS
 import random
 
-from metrics import *
+# from metrics import *
 
 app = None
 
