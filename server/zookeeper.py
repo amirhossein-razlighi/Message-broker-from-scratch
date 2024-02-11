@@ -95,10 +95,18 @@ class ZooKeeper(Broker):
         self.update_broker_status(broker_id, 0)
         print(f"Broker {broker_id} stopped.")
 
-    def consume(self):
-        for broker_id in self.is_up:
-            if self.is_empty[broker_id] == 0 and self.is_up[broker_id] == 1:
-                return broker_id
+    def consume(self, command='pull'):
+        if command == 'sub':
+            items = list(self.is_up.items())
+            random.shuffle(items)
+            for broker_id, is_active in items:
+                if is_active == 1:
+                    return broker_id
+        else:
+
+            for broker_id in self.is_up:
+                if self.is_empty[broker_id] == 0 and self.is_up[broker_id] == 1:
+                    return broker_id
         return None
 
     def send_heartbeat(self, broker_id):
@@ -323,11 +331,12 @@ class ZooKeeper(Broker):
                     await writer.drain()
 
                 elif json_dict["type"] == "SUBSCRIBE":
-                    status = self.choose_broker_for_subscription(json_dict["subscriber"])
-                    if status == STATUS.SUCCESS:
-                        writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                    broker_id = self.consume('sub')
+                    if broker_id is not None:
+                        text = ','.join(str(x) for x in self.addresses[broker_id]) + ',' + broker_id
+                        writer.write(text.encode())
                     else:
-                        writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                        writer.write('There is not broker'.encode())
                     await writer.drain()
                 else:
                     break
