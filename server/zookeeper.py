@@ -298,10 +298,11 @@ class ZooKeeper(Broker):
                         writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
                     await writer.drain()
                 else:
-                    writer.write("Invalid".encode())
+                    break
 
         self._logger.info(f"Closing the connection")
         writer.close()
+        await writer.wait_closed()
 
 
 if __name__ == "__main__":

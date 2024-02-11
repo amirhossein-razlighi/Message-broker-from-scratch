@@ -69,15 +69,18 @@ class Broker:
         return message
 
     def extract_message(self, message):
-        statements = message.split(",")
-        json_dict = {}
-        print(statements)
-        for statement in statements:
-            key, value = statement.split(":")
-            key = key.split('"')[1]
-            value = value.split('"')[1]
-            # print(key, value)
-            json_dict[key] = value
+        try:
+            statements = message.split(",")
+            json_dict = {}
+            print(statements)
+            for statement in statements:
+                key, value = statement.split(":")
+                key = key.split('"')[1]
+                value = value.split('"')[1]
+                # print(key, value)
+                json_dict[key] = value
+        except:
+            json_dict = {"type": "Invalid"}
         return json_dict
 
     async def _subscribe_checker_and_notifier(self, writer):
@@ -176,8 +179,7 @@ class Broker:
                 print(f"Response: {response}")
                 writer.write((response + "\n").encode())
             else:
-                writer.write("Invalid".encode())
-                await writer.drain()
+                break
         self._logger.info(f"Closing the connection")
         writer.close()
         await writer.wait_closed()
