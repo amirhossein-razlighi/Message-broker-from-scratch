@@ -40,3 +40,16 @@ sudo docker build . -t client_app:latest
 # run the project
 sudo docker compose -p "sad" up -d
 ```
+
+## Running Client
+```python
+# Python
+cd client
+python client.py
+```
+```java
+// Java
+cd client
+mvn clean install
+java -jar target/client-1.0-SNAPSHOT-jar-with-dependencies.jar
+```
