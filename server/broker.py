@@ -18,7 +18,7 @@ app = None
 uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
 
 class Broker:
-    def __init__(self, host, socket_port, http_port, ping_port, initialization_port):
+    def __init__(self, host, socket_port, http_port, ping_port):
         self.id = str(uuid.uuid4())
         self._pqueues = {}
         # self._queue = queue.Queue()
