@@ -50,12 +50,6 @@ class Broker:
     def unregister(self, observer):
         self._observers.remove(observer)
 
-    def notify(self, part_no, message):
-        print(f"Broker {self.id} notifying observers...")
-        for observer in self._observers:
-            if observer._is_replica and part_no in observer._pqueues:
-                print(f"Updating observer {observer.id}...")
-                observer.update(self, part_no, message)
 
     def _create_pqueue(self, part_no, is_replica):
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
@@ -123,7 +117,17 @@ class Broker:
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
         self.is_empty = 0  # TODO ?
-        self.notify(part_no, message)
+        # write notify for each replica
+        print(f"Broker {self.id} notifying observers...")
+        for observer in self._observers:
+            if observer.is_replica:
+                self._logger.info(f"Writing message {json_dict['value']} to replica part_no {part_no}")
+                print(f"Received PUSH message for Replica {json_dict}")
+                print(f"Writing message {json_dict['value']} to replica part_no {observer.part_no}")
+                message = self._pqueues[observer.part_no].write_new_message(json_dict["value"])
+                self._logger.info(f"Message written to part_no {observer.part_no}")
+                print(f"Message written to part_no {observer.part_no}")
+
         return STATUS.SUCCESS
 
     def _pull(self, json_dict):

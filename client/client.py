@@ -71,7 +71,19 @@ async def pull_message():
     }
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
-    print(f"Received from server: {repr(data)}")
+    if repr(data).startswith('Brokers'):
+        return
+    host_b, port_b = data.split(',')
+    port_b = int(port_b)
+
+    # Establish a new connection
+    new_client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    new_client_socket.connect((host_b, port_b))
+    new_client_socket.send(json.dumps(message).encode())
+    new_data = new_client_socket.recv(1024).decode()
+
+    print(f"Received from server: {repr(new_data)}")
+    new_client_socket.close()
 
 
 async def subscribe(f: Callable):
