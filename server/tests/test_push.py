@@ -29,5 +29,6 @@ class TestPush(unittest.TestCase):
             message = {"type": "PUSH", "key": random_key, "value": random_value, "part_no": "0"}
             s.sendall(json.dumps(message).encode())
             data = s.recv(1024).decode()
+            data = data.strip()
             assert data == str(status.SOCKET_STATUS.WRITE_SUCCESS.value)
             s.close()
