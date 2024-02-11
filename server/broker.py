@@ -186,7 +186,7 @@ class Broker:
         )
 
         # Send broker information
-        broker_info = f"{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
+        broker_info = f"initiate me :{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
         writer.write(broker_info.encode())
         await writer.drain()
 

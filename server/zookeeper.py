@@ -37,28 +37,28 @@ class ZooKeeper(Broker):
             self.addresses = {}
             self.ping_addresses = {}
 
-    async def handle_broker(self, reader, writer):
-        # Receive broker's information
-        broker_info = (await reader.read(1024)).decode()
-        host, port, ping_port, idf = broker_info.split(":")
-        self.addresses[idf]=(host, int(port))
-        self.addresses[idf]=(host, int(ping_port))
-        print(f"Broker at {host}:{port} added to the network.")
-        writer.close()
-
-    async def start(self):
-        # Create server
-        server = await asyncio.start_server(
-            self.handle_broker, self.host, self.port
-        )
-
-        # Print server information
-        addr = server.sockets[0].getsockname()
-        print(f"Leader Broker listening on {addr}")
-
-        # Serve requests until interrupted
-        async with server:
-            await server.serve_forever()
+    # async def handle_broker(self, reader, writer):
+    #     # Receive broker's information
+    #     broker_info = (await reader.read(1024)).decode()
+    #     _, host, port, ping_port, idf = broker_info.split(":")
+    #     self.addresses[idf]=(host, int(port))
+    #     self.addresses[idf]=(host, int(ping_port))
+    #     print(f"Broker at {host}:{port} added to the network.")
+    #     writer.close()
+    #
+    # async def setup_zookeeper(self):
+    #     # Create server
+    #     server = await asyncio.start_server(
+    #         self.handle_broker, self.host, self.port
+    #     )
+    #
+    #     # Print server information
+    #     addr = server.sockets[0].getsockname()
+    #     print(f"Leader Broker listening on {addr}")
+    #
+    #     # Serve requests until interrupted
+    #     async with server:
+    #         await server.serve_forever()
 
     def add_broker(self, broker, partition, replica=None):
         message = {'type': 'add_broker', 'partition': partition, 'replica': replica}
@@ -273,33 +273,39 @@ class ZooKeeper(Broker):
         while True:
             data = await reader.read(100)
             message = data.decode()
-            addr = writer.get_extra_info("peername")
-            print(f"Received {message} from {addr}")
-
-            json_dict = self.extract_message(message)
-            if json_dict["type"] == "PUSH":
-                broker = self.get_broker_for_partition(json_dict["part_no"])
-                status = self._push_to_broker(broker, json_dict)
-                if status == STATUS.SUCCESS:
-                    writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
-                else:
-                    writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
-                await writer.drain()
-            elif json_dict["type"] == "PULL":
-                part_no = json_dict["part_no"]
-                if part_no not in self._pqueues:
-                    # error no such queue
-                    return "Invalid"
-                message = self._read(part_no)
-            elif json_dict["type"] == "SUBSCRIBE":
-                status = self.choose_broker_for_subscription(json_dict["subscriber"])
-                if status == STATUS.SUCCESS:
-                    writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
-                else:
-                    writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
-                await writer.drain()
+            if message.startswith("initiate"):
+                _, host, port, ping_port, idf = message.split(":")
+                self.addresses[idf] = (host, int(port))
+                self.addresses[idf] = (host, int(ping_port))
+                print(f"Broker at {host}:{port} added to the network.")
             else:
-                writer.write("Invalid".encode())
+                addr = writer.get_extra_info("peername")
+                print(f"Received {message} from {addr}")
+
+                json_dict = self.extract_message(message)
+                if json_dict["type"] == "PUSH":
+                    broker = self.get_broker_for_partition(json_dict["part_no"])
+                    status = self._push_to_broker(broker, json_dict)
+                    if status == STATUS.SUCCESS:
+                        writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                    else:
+                        writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                    await writer.drain()
+                elif json_dict["type"] == "PULL":
+                    part_no = json_dict["part_no"]
+                    if part_no not in self._pqueues:
+                    # error no such queue
+                        return "Invalid"
+                    message = self._read(part_no)
+                elif json_dict["type"] == "SUBSCRIBE":
+                    status = self.choose_broker_for_subscription(json_dict["subscriber"])
+                    if status == STATUS.SUCCESS:
+                        writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                    else:
+                        writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                    await writer.drain()
+                else:
+                    writer.write("Invalid".encode())
 
         self._logger.info(f"Closing the connection")
         writer.close()
