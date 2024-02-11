@@ -29,7 +29,6 @@ client_subscribe_socket = None
 
 logging.log(logging.INFO, "Client started")
 
-
 # find the master zookeeper
 def find_master():
     for ip in zookeeper_ips:
@@ -37,7 +36,6 @@ def find_master():
         if response.status_code == 200:
             return ip
     return None
-
 
 # open connection with server
 def open_connection(node_ip, node_port):
@@ -48,11 +46,9 @@ def open_connection(node_ip, node_port):
     print("Connected to server")
     return new_socket
 
-
 async def get_input(prompt):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(executor, input, prompt)
-
 
 # push message to server
 async def push_message(key: str, value: str):
@@ -64,7 +60,6 @@ async def push_message(key: str, value: str):
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
     print(f"Received from server: {repr(data)}")
-
 
 # pull message from server
 async def pull_message():
@@ -149,11 +144,10 @@ async def main():
     host_name = os.getenv("ZOOKEEPER")
     client_socket = open_connection(host_name, port)
 
-    await push_message("1", "hello")
-    await push_message("2", "world")
-    await push_message("3", "bye")
-
-    client_socket.close()
+    await push_message("1", "a")
+    await push_message("1", "b")
+    await push_message("1", "v")
+    await pull_message()
 
     """ TEST SUBSCRIBE/PUSH/PULL
     loop = asyncio.get_event_loop()
@@ -203,7 +197,6 @@ async def main():
         client_socket.close()
     """
 
-
 # Example test scenarios in the client
 
 def test_add_brokers_and_replicas():
@@ -216,6 +209,7 @@ def test_add_brokers_and_replicas():
     broker_thread = threading.Thread(target=broker1.run, daemon=True)
     broker_thread.start()
     sleep(1)
+
 
 
 def test_heartbeat_and_health_check():
@@ -240,7 +234,6 @@ def test_heartbeat_and_health_check():
 
     print("Test passed!")
 
-
 def test_subscription_and_message_handling():
     # Initialize ZooKeeper (you can adapt this based on your actual setup)
     host_name = os.getenv("BROKER")
@@ -259,8 +252,8 @@ def test_subscription_and_message_handling():
         broker = zookeeper.consume()  # Get a broker for message consumption
         broker.handle_message(message)  # Simulate handling the message
 
-    print("Test passed!")
 
+    print("Test passed!")
 
 def test_message_consistency():
     # Initialize ZooKeeper (you can adapt this based on your actual setup)
@@ -273,21 +266,19 @@ def test_message_consistency():
 
     # Simulate sending a message to the broker
     message = "Hello, world!"
+ #   broker.handle_client()
 
+    # Retrieve the message from the replica using extract_message
+  #  received_message = replica.extract_message(message)
 
-#   broker.handle_client()
+    # Verify that the received message matches the original message
+  #  assert received_message == message
 
-# Retrieve the message from the replica using extract_message
-#  received_message = replica.extract_message(message)
-
-# Verify that the received message matches the original message
-#  assert received_message == message
-
-#  print("Test passed!")
+  #  print("Test passed!")
 
 if __name__ == "__main__":
-    #  test_add_brokers_and_replicas()
-    #  test_heartbeat_and_health_check()
-    #   test_subscription_and_message_handling()
-    #  test_message_consistency()
+  #  test_add_brokers_and_replicas()
+  #  test_heartbeat_and_health_check()
+ #   test_subscription_and_message_handling()
+  #  test_message_consistency()
     asyncio.run(main())

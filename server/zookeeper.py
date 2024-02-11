@@ -22,6 +22,8 @@ import asyncio
 
 from pqueue import Pqueue
 
+# from metrics import *
+
 
 class ZooKeeper(Broker):
     def __init__(self, host, socket_port, http_port, ping_port):
@@ -36,6 +38,7 @@ class ZooKeeper(Broker):
         self.ping_addresses = {}
         self.is_up = {}
         self.is_empty = {}
+        self.is_zookeeper_nominee = True
         self.first_replica = []
 
     # async def handle_broker(self, reader, writer):
@@ -143,6 +146,7 @@ class ZooKeeper(Broker):
 
         app.add_api_route("/", self.read_root, methods=["GET"])
         app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
+        app.add_api_route("/metrics", self.gen_metrics, methods=["GET"])
 
         socket_thread = threading.Thread(
             target=asyncio.run, args=(self.socket_thread(),)
@@ -316,11 +320,14 @@ class ZooKeeper(Broker):
                 json_dict = self.extract_message(message)
                 if json_dict["type"] == "PUSH":
                     status = self._push(json_dict)
+                    status = STATUS.SUCCESS
                     print(f"Status: {status}")
                     if status == STATUS.SUCCESS:
-                        writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                        response = str(SOCKET_STATUS.WRITE_SUCCESS.value)
+                        writer.write(response.encode())
                     else:
                         writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                    print(f"Sent {SOCKET_STATUS.WRITE_SUCCESS.value}")
                     await writer.drain()
                 elif json_dict["type"] == "PULL":
                     broker_id = self.consume()

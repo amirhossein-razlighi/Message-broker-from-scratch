@@ -13,6 +13,8 @@ import logging
 from status import STATUS, SOCKET_STATUS
 import random
 
+# from metrics import *
+
 app = None
 
 uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
@@ -40,7 +42,8 @@ class Broker:
         self._observers = set()
         self._is_replica = False
         self.ping_port = ping_port
-
+        self.is_zookeeper_nominee = False
+    
     def __str__(self):
         return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica}, observers={self._observers})"
 
@@ -132,6 +135,7 @@ class Broker:
 
     def _pull(self, json_dict):
         self._logger.info(f"Received PULL message {json_dict}")
+        # pull_request_metrics.inc()
         try:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
@@ -189,10 +193,19 @@ class Broker:
         await writer.wait_closed()
 
     async def read_root(self):
+        # response_200_metrics.inc()
         return fastapi.Response(content="Hello, World", status_code=200)
 
     async def get_zookeeper(self):
+        # response_200_metrics.inc()
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
+    
+    async def gen_metrics(self):
+        self._logger.info(f"inside gen_metrics")
+        # registry = CollectorRegistry()
+        # multiprocess.MultiProcessCollector(registry)
+        # data = generate_latest(registry)
+        # return fastapi.Response(content=data, media_type=CONTENT_TYPE_LATEST, status_code=200)
 
     async def socket_thread(self):
         server = await asyncio.start_server(
@@ -229,6 +242,7 @@ class Broker:
 
         app.add_api_route("/", self.read_root, methods=["GET"])
         app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
+        app.add_api_route("/metrics", self.gen_metrics, methods=["GET"])
 
         socket_thread = threading.Thread(
             target=asyncio.run, args=(self.socket_thread(),)
@@ -238,6 +252,13 @@ class Broker:
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )
         http_thread.start()
+
+    # metrics section
+    def is_zookeeper(self):
+        return self.is_zookeeper_nominee
+    
+
+        
 
 
 if __name__ == "__main__":
