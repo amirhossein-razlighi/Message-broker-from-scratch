@@ -65,12 +65,6 @@ class ZooKeeper(Broker):
     #     async with server:
     #         await server.serve_forever()
 
-
-
-
-
-
-
     def remove_broker(self, broker):
         self._broker_list.remove(broker)
 
@@ -130,7 +124,14 @@ class ZooKeeper(Broker):
 
             time.sleep(5)
 
-    def run(self, host, http_port, socket_port):
+    def run(self, host=None, http_port=None, socket_port=None):
+        if host is None:
+            host = self._host
+        if http_port is None:
+            http_port = self._http_port
+        if socket_port is None:
+            socket_port = self._socket_port
+
         app = fastapi.FastAPI(port=int(http_port), host=host)
 
         app.add_api_route("/", self.read_root, methods=["GET"])
