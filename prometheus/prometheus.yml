@@ -13,7 +13,7 @@ global:
 
 # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
 rule_files:
-        - "rules/first_rules.yml"
+        # - "rules/first_rules.yml"
         # - "rules/bb-alert.rules"
   # - "second_rules.yml"
 
@@ -29,6 +29,13 @@ scrape_configs:
     basic_auth:
       username: 'user1'
       password: 'password'
+
+  # - job_name: docker
+  #         # metrics_path defaults to '/metrics'
+  #         #       # scheme defaults to 'http'.
+  #         #
+  #   static_configs:
+  #     - targets: ["host.docker.internal:9323"]
 
   # - job_name: 'blackbox' # To get metrics about the exporter itself.
   #   metrics_path: /metrics
