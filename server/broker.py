@@ -18,7 +18,7 @@ app = None
 uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
 
 class Broker:
-    def __init__(self, host, socket_port, http_port, ping_port):
+    def __init__(self, host, socket_port, http_port, ping_port, initialization_port):
         self.id = str(uuid.uuid4())
         self._pqueues = {}
         # self._queue = queue.Queue()
@@ -28,14 +28,15 @@ class Broker:
         self._socket_port = int(socket_port)
         self._http_port = http_port
         self._zookeeper = {
-            "host": host,
-            "http_port": http_port,
-            "socket_port": socket_port,
+            "host": None,
+            "http_port": None,
+            "socket_port": None,
+            "initialization_port": None,
         }
         self._create_pqueue(0, False)
         self._broker_subscribers = []
-        self.is_up = 0
-        self.is_empty = 1
+        self.is_up = True
+        self.is_empty = False
         self._logger = logging.getLogger(__name__)
         self._observers = set()
         self._is_replica = False
@@ -182,6 +183,24 @@ class Broker:
 
         async with server:
             await server.serve_forever()
+
+    async def initiate(self):
+        # Connect to leader broker
+        reader, writer = await asyncio.open_connection(
+            self._zookeeper['host'], self._zookeeper['socket_port']
+        )
+
+        # Send broker information
+        broker_info = f"{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
+        writer.write(broker_info.encode())
+        await writer.drain()
+
+        # Close connection
+        writer.close()
+        await writer.wait_closed()
+        print("Broker initiated and connected to the leader.")
+
+
 
     def run(self, host=None, http_port=None, socket_port=None):
         if host is None:

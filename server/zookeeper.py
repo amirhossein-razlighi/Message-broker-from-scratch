@@ -1,4 +1,9 @@
 import asyncio
+import os, sys
+
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(parent)
 import hashlib
 import pickle
 import random
@@ -29,6 +34,31 @@ class ZooKeeper(Broker):
             self._brokers = {}  # New dictionary to map broker_id to broker
             self._global_subscribers = []
             self._current_broker_index = 0  # Used for round-robin
+            self.addresses = {}
+            self.ping_addresses = {}
+
+    async def handle_broker(self, reader, writer):
+        # Receive broker's information
+        broker_info = (await reader.read(1024)).decode()
+        host, port, ping_port, idf = broker_info.split(":")
+        self.addresses[idf]=(host, int(port))
+        self.addresses[idf]=(host, int(ping_port))
+        print(f"Broker at {host}:{port} added to the network.")
+        writer.close()
+
+    async def start(self):
+        # Create server
+        server = await asyncio.start_server(
+            self.handle_broker, self.host, self.port
+        )
+
+        # Print server information
+        addr = server.sockets[0].getsockname()
+        print(f"Leader Broker listening on {addr}")
+
+        # Serve requests until interrupted
+        async with server:
+            await server.serve_forever()
 
     def add_broker(self, broker, partition, replica=None):
         message = {'type': 'add_broker', 'partition': partition, 'replica': replica}
@@ -151,7 +181,7 @@ class ZooKeeper(Broker):
                 return brokers[broker_id]
 
     def send_heartbeat(self, broker_id):
-        broker_address = (self.brokers[broker_id].host, self.brokers[broker_id].ping_port)
+        broker_address = self.ping_addresses[broker_id]
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(3)
