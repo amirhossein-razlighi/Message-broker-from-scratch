@@ -65,82 +65,64 @@ class ZooKeeper(Broker):
     #     async with server:
     #         await server.serve_forever()
 
-    def add_broker(self, broker, partition, replica=None):
-        message = {'type': 'add_broker', 'partition': partition, 'replica': replica}
-        response = self.send_message(broker, message)
-        print(response)
-        self._brokers[broker.id] = broker  # Add the broker to the _brokers dictionary
 
-    def handle_message(self, message):
-        if message['type'] == 'add_broker':
-            broker_id = message['broker_id']
-            partition = message['partition']
-            replica = message['replica']
+    def add_broker(self, message):
+        broker_id = message['broker_id']
+        partition = message['partition']
+        replica = message['replica']
 
-            position = hash_function(broker_id)
-            self._broker_list.append((position, broker_id))
+        position = hash_function(broker_id)
+        self._broker_list.append((position, broker_id))
 
-            if partition not in self._partitions:
-                self._partitions[partition] = []
+        if partition not in self._partitions:
+            self._partitions[partition] = []
 
-            self._broker_list.sort()
-            print(
-                f"Broker {broker_id} added at position {position} in partition {partition}"
-            )
+        self._broker_list.sort()
+        print(
+            f"Broker {broker_id} added at position {position} in partition {partition}"
+        )
 
-            self._partitions[partition].append(broker_id)
-            self._broker_partitions[broker_id] = partition
+        self._partitions[partition].append(broker_id)
+        self._broker_partitions[broker_id] = partition
 
-            self._broker_list.sort()
-            print(f"Broker {broker_id} added at position {position} in partition {partition}")
+        self._broker_list.sort()
+        print(f"Broker {broker_id} added at position {position} in partition {partition}")
 
-            if replica is not None:
-                self.add_replica(broker_id)
+        if replica is not None:
+            self.add_replica(broker_id)
 
-            return 'Broker added successfully'
+        return 'Broker added successfully'
 
-        if message['type'] == 'add_replica':
-            broker_id = message['broker_id']
-            broker = self._brokers[broker_id]  # Get the broker from the _brokers dictionary
 
-            new_broker = Replica(broker.host, broker.port)
+    def add_replica(self,message):
+        broker_id = message['broker_id']
+        broker = self._brokers[broker_id]  # Get the broker from the _brokers dictionary
 
-            original_partition = self._broker_partitions[broker_id]
+        new_broker = Replica(broker.host, broker.port)
 
-            other_partitions = [p for p in self._partitions if p != original_partition]
+        original_partition = self._broker_partitions[broker_id]
 
-            if not other_partitions:
-                print("No other partitions available to add the replica.")
-                return
+        other_partitions = [p for p in self._partitions if p != original_partition]
 
-            partition = random.choice(other_partitions)
+        if not other_partitions:
+            print("No other partitions available to add the replica.")
+            return
 
-            if partition not in self._partitions:
-                self._partitions[partition] = []
+        partition = random.choice(other_partitions)
 
-            self._partitions[partition].append(new_broker)
-            self._broker_partitions[new_broker] = partition
+        if partition not in self._partitions:
+            self._partitions[partition] = []
 
-            # Create a priority queue for the replica
-            new_broker._pqueues[partition] = Pqueue(partition, is_replica=True)
+        self._partitions[partition].append(new_broker)
+        self._broker_partitions[new_broker] = partition
 
-            broker.register(new_broker)  # register new_broker as an observer to the original broker
+        # Create a priority queue for the replica
+        new_broker._pqueues[partition] = Pqueue(partition, is_replica=True)
 
-            self.add_broker(new_broker, partition)
+        broker.register(new_broker)  # register new_broker as an observer to the original broker
 
-            return 'Replica added successfully'
-
-    def send_message(self, broker, message):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((broker.host, broker.port))
-            s.sendall(pickle.dumps(message))
-            data = s.recv(1024)
-        return pickle.loads(data)
-
-    def add_replica(self, broker):
-        message = {'type': 'add_replica'}
-        response = self.send_message(broker, message)
-        print(response)
+        self._brokers[new_broker.id] = new_broker
+        return 'Replica added successfully'
 
     def remove_broker(self, broker):
         self._broker_list.remove(broker)
@@ -290,12 +272,12 @@ class ZooKeeper(Broker):
                 self.is_up[idf] = 1
                 self.is_empty[idf] = 1
                 print(f"Broker at {host}:{port} added to the network.")
+
             else:
                 addr = writer.get_extra_info("peername")
                 print(f"Received {message} from {addr}")
 
                 json_dict = self.extract_message(message)
-                self.handle_message(json_dict)
                 if json_dict["type"] == "PUSH":
                     broker_id = self.hash_message_key(json_dict["key"])
                     status = self._push_to_broker(broker_id, json_dict)
