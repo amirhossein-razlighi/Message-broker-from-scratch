@@ -254,13 +254,25 @@ class ZooKeeper(Broker):
                 )
                 return STATUS.ERROR
 
-    def get_broker_for_partition(self, partition):
-        brokers = self._partitions[partition]
-        return random.choice(brokers)
+    # def get_broker_for_partition(self, partition):
+    #     brokers = self._partitions[partition]
+    #     return random.choice(brokers)
 
-    def _push_to_broker(self, broker, json_dict):
+    def hash_message_key(self, message_key):
+        hasher = hashlib.sha256()
+        hasher.update(message_key.encode('utf-8'))
+        hashed_value = int.from_bytes(hasher.digest(), byteorder='big')
+        num_active = 0
+        active_brokers = []
+        for broker_id, state in self.is_up.items():
+            if state == 1:
+                active_brokers.append(broker_id)
+        partition_index = hashed_value % len(active_brokers)
+        return active_brokers[partition_index]
+
+    def _push_to_broker(self, broker_id, json_dict):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((broker.host, broker.socket_port))
+            s.connect(self.addresses[broker_id])
             s.sendall(json.dumps(json_dict).encode())
             data = s.recv(1024)
             print("Received", repr(data))
@@ -286,7 +298,7 @@ class ZooKeeper(Broker):
 
                 json_dict = self.extract_message(message)
                 if json_dict["type"] == "PUSH":
-                    broker = self.get_broker_for_partition(json_dict["part_no"])
+                    broker = self.hash_message_key(json_dict["key"])
                     status = self._push_to_broker(broker, json_dict)
                     if status == STATUS.SUCCESS:
                         writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
