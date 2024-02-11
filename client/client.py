@@ -100,16 +100,19 @@ async def subscribe(f: Callable):
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
     print(f"Received from server: {repr(data)}")
-    threading.Thread(target=receive_message, daemon=True).start()
+    threading.Thread(target=receive_message, args=(f,), daemon=True).start()
 
 
 # a function to receive messages from the server (if we are subscribed)
 # but if response doesn't come in 5 seconds, we continue with our work
-def receive_message():
+def receive_message(f: Callable):
     client_socket.settimeout(3)
     while True:
         try:
             data = client_socket.recv(1024).decode()
+            if not data == "No message":
+                data = data.strip()
+                data = f(data)
             print(f"Received from server: {repr(data)}")
         except:
             continue
