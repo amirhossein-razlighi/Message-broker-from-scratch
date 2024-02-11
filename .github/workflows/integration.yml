@@ -44,7 +44,7 @@ jobs:
     
     - name: Test server unit tests
       run: |
-        docker exec server_app sh -c "cd tests/ && python3 -m unittest test_api && python3 -m unittest test_push"
+        docker exec server_app sh -c "pip install -r requirements.txt && cd tests/ && python3 -m unittest test_api && python3 -m unittest test_push"
     
     - name: Stop and remove server_app container
       run: |
