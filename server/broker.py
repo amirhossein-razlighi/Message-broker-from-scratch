@@ -181,7 +181,7 @@ class Broker:
         registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(registry)
         data = generate_latest(registry)
-        return fastapi.Response(content=json.dumps(data), status_code=200)
+        return fastapi.Response(content=data, media_type=CONTENT_TYPE_LATEST, status_code=200)
 
     async def socket_thread(self):
         server = await asyncio.start_server(
