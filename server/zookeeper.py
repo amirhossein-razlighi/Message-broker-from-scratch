@@ -23,9 +23,6 @@ import asyncio
 from pqueue import Pqueue
 
 
-
-
-
 class ZooKeeper(Broker):
     def __init__(self, host, socket_port, http_port, ping_port):
         super().__init__(host, socket_port, http_port, ping_port)
@@ -39,7 +36,7 @@ class ZooKeeper(Broker):
         self.ping_addresses = {}
         self.is_up = {}
         self.is_empty = {}
-        self.first_replica=[]
+        self.first_replica = []
 
     # async def handle_broker(self, reader, writer):
     #     # Receive broker's information
@@ -83,10 +80,8 @@ class ZooKeeper(Broker):
         else:
             print(f"Error: Broker {broker_id} not found.")
 
-    def hash_function(self,key):
-        if (len(self._brokers)==0):
-            return 0
-        return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (len(self._brokers))
+    def hash_function(self, key):
+        return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (len(self._brokers) + 1)
 
     def get_active_brokers(self):
         active_brokers = [broker_id for broker_id, data in self.is_up.items() if data == 1]
@@ -104,6 +99,7 @@ class ZooKeeper(Broker):
         for broker_id in self.is_up:
             if self.is_empty[broker_id] == 0 and self.is_up[broker_id] == 1:
                 return broker_id
+        return None
 
     def send_heartbeat(self, broker_id):
         broker_address = self.ping_addresses[broker_id]
@@ -228,17 +224,6 @@ class ZooKeeper(Broker):
             else:
                 return STATUS.ERROR
 
-    def _pull_from_broker(self, broker_id, json_dict):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect(self.addresses[broker_id])
-            s.sendall(json.dumps(json_dict).encode())
-            data = s.recv(1024)
-            print("Received", repr(data))
-            if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
-                return STATUS.SUCCESS
-            else:
-                return STATUS.ERROR
-
     # Overriding the Broker's "handle_client" method
     async def handle_client(self, reader, writer):
         while True:
@@ -330,12 +315,10 @@ class ZooKeeper(Broker):
                     await writer.drain()
                 elif json_dict["type"] == "PULL":
                     broker_id = self.consume()
-                    status = self._push_pull_broker(broker_id, json_dict)
-                    if status == STATUS.SUCCESS:
-                        writer.write(SOCKET_STATUS.WRITE_SUCCESS.value.encode())
+                    if broker_id is not None:
+                        writer.write(','.join(str(x) for x in self.addresses[broker_id]).encode())
                     else:
-                        writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
-                        self.is_empty[broker_id] = 0
+                        writer.write('Brokers are empty'.encode())
                     await writer.drain()
 
                 elif json_dict["type"] == "SUBSCRIBE":
@@ -370,4 +353,3 @@ if __name__ == "__main__":
 
     zookeeper = ZooKeeper(args.host, args.socket_port, args.http_port, args.ping_port)
     zookeeper.run(args.host, args.http_port, args.socket_port)
-
