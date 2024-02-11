@@ -1,12 +1,15 @@
-package client.src.main.java.com.example;
+package com.example;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.google.gson.Gson;
 
 public class Client {
 
@@ -124,15 +127,17 @@ public class Client {
         System.out.println("Received from server: " + response);
     }
 
-    private static void subscribe() throws IOException {
-        if (clientSocket == null) {
+   private static void subscribe() throws IOException {
+        if (clientSocket == null || out == null || in == null) {
             // Handle error
             return;
         }
-        OutputStream outputStream = clientSocket.getOutputStream();
-        PrintWriter out = new PrintWriter(outputStream, true);
-        out.println("{\"type\":\"SUBSCRIBE\",\"broker_id\":\"0\"}");
-        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        Map<String, String> message = new HashMap<>();
+        message.put("type", "SUBSCRIBE");
+        message.put("broker_id", "0");
+        Gson gson = new Gson();
+        String jsonMessage = gson.toJson(message);
+        out.println(jsonMessage);
         String response = in.readLine();
         System.out.println("Received from server: " + response);
     }
