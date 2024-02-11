@@ -15,6 +15,8 @@ import asyncio
 from replica import Replica
 from pqueue import Pqueue
 
+from server.metrics import *
+
 
 def hash_function(key):
     return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16)
@@ -29,7 +31,7 @@ class ZooKeeper(Broker):
         self._brokers = {}  # New dictionary to map broker_id to broker
         self._global_subscribers = []
         self._current_broker_index = 0  # Used for round-robin
-        self.is_zookeeper = True
+        self.is_zookeeper_nominee = True
 
     def add_broker(self, broker, partition, replica=None):
         message = {'type': 'add_broker', 'partition': partition, 'replica': replica}
@@ -232,6 +234,7 @@ class ZooKeeper(Broker):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((broker.host, broker.socket_port))
             s.sendall(json.dumps(json_dict).encode())
+            push_request_metrics.inc()
             data = s.recv(1024)
             print("Received", repr(data))
             if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
