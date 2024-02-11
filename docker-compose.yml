@@ -41,18 +41,13 @@ services:
     # entrypoint: sleep 10000
     environment:
       - ZOOKEEPER=sad-zookeepers-1
-      - PROMETHEUS_MULTIPROC_DIR=multiproc-tmp
 
   zookeepers:
     image: zookeeper_app:latest
     deploy:
       mode: replicated
-      replicas: 1
-    ports:
-      - "8888:8888"
+      replicas: 2
     # entrypoint: sleep 10000
-    environment:
-      - PROMETHEUS_MULTIPROC_DIR=multiproc-tmp
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 20s

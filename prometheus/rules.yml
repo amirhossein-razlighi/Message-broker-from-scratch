@@ -2,12 +2,12 @@ groups:
 - name: alertgroup
   rules:
 
-  - alert: NginxActiveConnctions
-    expr: nginx_connections_active >= 100
+  - alert: ResponseTimeHigh
+    expr: sad_response_time_push > 0.5
     for: 1m
     labels:
-      severity: page
+      severity: critical
     annotations:
-      summary: "Nginx active connctions is more than 100"
+      summary: "Response time is too high"
       description: "for more than 1 minutes"
 

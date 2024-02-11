@@ -244,7 +244,7 @@ class ZooKeeper(Broker):
             else:
                 status = STATUS.ERROR
 
-            cal_response_time(start_time, resp_insert_request)
+            cal_response_time(start_time, resp_push_request)
             return status
 
     # Overriding the Broker's "handle_client" method

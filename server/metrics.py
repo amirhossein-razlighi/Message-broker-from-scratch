@@ -14,8 +14,8 @@ pull_request_metrics = Counter(
 
 response_200_metrics = Counter("sad_200_responses", "number of 200 responses of this broker")
 
-resp_insert_request = Summary(
-    "sad_push_response", "response time for push message")
+resp_push_request = Summary(
+    "sad_response_time_push", "response time for push message")
 
 
 def cal_response_time(start_time, metric_var: prometheus_client.metrics):

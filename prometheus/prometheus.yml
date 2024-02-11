@@ -13,7 +13,7 @@ global:
 
 # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
 rule_files:
-        # - "rules/first_rules.yml"
+        - "./rules.yml"
         # - "rules/bb-alert.rules"
   # - "second_rules.yml"
 
@@ -35,6 +35,11 @@ scrape_configs:
     static_configs:
       - targets: 
           - 'sad-zookeepers-1:8888'
+          - 'sad-zookeepers-2:8888'
+          - 'sad-brokers-1:8888'
+          - 'sad-brokers-2:8888'
+          - 'sad-brokers-3:8888'
+          - 'sad-brokers-4:8888'
 
   # - job_name: docker
   #         # metrics_path defaults to '/metrics'
