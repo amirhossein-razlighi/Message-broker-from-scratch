@@ -50,13 +50,11 @@ class Broker:
     def unregister(self, observer):
         self._observers.remove(observer)
 
-    def notify(self, part_no, message):
+    def notify(self):
         print(f"Broker {self.id} notifying observers...")
         for observer in self._observers:
-            if observer._is_replica and part_no in observer._pqueues:
-                print(f"Updating observer {observer.id}...")
-                observer.update(self, part_no, message)
-
+            #  Write the logic of this function
+            pass
     def _create_pqueue(self, part_no, is_replica):
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
 
@@ -123,7 +121,8 @@ class Broker:
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
         self.is_empty = 0  # TODO ?
-        self.notify(part_no, message)
+        # write notify
+        #self.notify()
         return STATUS.SUCCESS
 
     def _pull(self, json_dict):
