@@ -9,6 +9,10 @@ import asyncio
 import logging
 
 # zookeeper ips
+from server.broker import Broker
+from server.replica import Replica
+from server.zookeeper import ZooKeeper
+
 zookeeper_ips = ['127.0.0.1']
 port = 8000
 master_ip = None
@@ -16,7 +20,6 @@ client_socket = None
 client_subscribe_socket = None
 
 logging.log(logging.INFO, "Client started")
-
 # find the master zookeeper
 def find_master():
     for ip in zookeeper_ips:
@@ -25,17 +28,14 @@ def find_master():
             return ip
     return None
 
-
 # open connection with server
 def open_connection(node_ip, node_port):
     host_ip = socket.gethostbyname(node_ip)
     port_cnn = node_port
-
     new_socket = socket.socket()
     new_socket.connect((host_ip, port_cnn))
     print("Connected to server")
     return new_socket
-
 
 # push message to server
 def push_message(key: str, value: str):
@@ -53,7 +53,6 @@ def push_message(key: str, value: str):
     data = client_socket.recv(1024).decode()
     print(f"Received from server: {repr(data)}")
 
-
 # pull message from server
 async def pull_message():
     if client_socket is None:
@@ -62,11 +61,9 @@ async def pull_message():
     message = {
         "type": "PULL"
     }
-
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
     print(f"Received from server: {repr(data)}")
-
 
 # subscribe to server
 async def subscribe(f: Callable):
@@ -78,11 +75,9 @@ async def subscribe(f: Callable):
         "type": "SUBSCRIBE",
         "broker_id": "0"
     }
-
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
     print(f"Received from server: {repr(data)}")
-
 
 def main():
     global client_socket
@@ -122,6 +117,93 @@ def main():
     """
 
 
+# Example test scenarios in the client
+
+def test_add_brokers_and_replicas():
+    # Initialize ZooKeeper (you can adapt this based on your actual setup)
+    host_name = os.getenv("BROKER")
+    zookeeper = ZooKeeper(host_name, 8000, 8888, 7500)
+
+    # Simulate adding brokers
+    broker1 = Broker(host_name, 9000, 9500, 1)
+    broker2 = Broker(host_name, 9001, 9501, 2)
+    zookeeper.add_broker(broker1, partition=0)
+    zookeeper.add_broker(broker2, partition=0)
+
+    # Verify that brokers are correctly processed
+    assert broker1.id in zookeeper.get_active_brokers()
+    assert broker2.id in zookeeper.get_active_brokers()
+
+    print("Test passed!")
+
+
+def test_heartbeat_and_health_check():
+    # Initialize ZooKeeper (you can adapt this based on your actual setup)
+    host_name = os.getenv("BROKER")
+    zookeeper = ZooKeeper(host_name, 8000, 8888, 7500)
+
+    # Simulate sending heartbeats from brokers
+
+    broker1 = Broker(host_name, 9000, 9500, 1)
+    broker2 = Broker(host_name, 9001, 9501, 2)
+    zookeeper.add_broker(broker1, partition=0)
+    zookeeper.add_broker(broker2, partition=0)
+
+    # Simulate heartbeats
+    zookeeper.send_heartbeat(broker1.id)
+    zookeeper.send_heartbeat(broker2.id)
+
+    # Verify that brokers are marked as up
+    assert broker1.id in zookeeper.get_active_brokers()
+    assert broker2.id in zookeeper.get_active_brokers()
+
+    print("Test passed!")
+
+def test_subscription_and_message_handling():
+    # Initialize ZooKeeper (you can adapt this based on your actual setup)
+    host_name = os.getenv("BROKER")
+    zookeeper = ZooKeeper(host_name, 8000, 8888, 7500)
+
+    # Simulate a subscriber
+    # what to give subscriber id?
+    subscriber_id = "subscriber1"
+
+    # Subscribe to a broker
+    zookeeper.choose_broker_for_subscription(subscriber_id)
+
+    # Simulate receiving messages
+    for i in range(5):
+        message = f"Message {i}"
+        broker = zookeeper.consume()  # Get a broker for message consumption
+        broker.handle_message(message)  # Simulate handling the message
+
+
+    print("Test passed!")
+
+def test_message_consistency():
+    # Initialize ZooKeeper (you can adapt this based on your actual setup)
+    host_name = os.getenv("BROKER")
+    zookeeper = ZooKeeper(host_name, 8000, 8888, 7500)
+
+    # Simulate adding a broker and its replica
+    broker = Broker(host_name, 9000, 9500, 1)
+    zookeeper.add_broker(broker, partition=0)
+
+    # Simulate sending a message to the broker
+    message = "Hello, world!"
+ #   broker.handle_client()
+
+    # Retrieve the message from the replica using extract_message
+  #  received_message = replica.extract_message(message)
+
+    # Verify that the received message matches the original message
+  #  assert received_message == message
+
+  #  print("Test passed!")
 
 if __name__ == "__main__":
+    test_add_brokers_and_replicas()
+  #  test_heartbeat_and_health_check()
+ #   test_subscription_and_message_handling()
+  #  test_message_consistency()
     main()
