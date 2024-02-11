@@ -20,7 +20,6 @@ import uvicorn
 from broker import Broker
 import asyncio
 
-from replica import Replica
 from pqueue import Pqueue
 
 
@@ -200,6 +199,7 @@ class ZooKeeper(Broker):
     def _push(self, json_dict):
         broker_id = self.hash_message_key(json_dict["key"])
         status = self._push_pull_broker(broker_id, json_dict)
+        print(f"STATUS in push: {status}")
         if status == STATUS.SUCCESS:
             self.is_empty[broker_id] = 0
             return STATUS.SUCCESS
@@ -218,8 +218,8 @@ class ZooKeeper(Broker):
             print("Connected")
             s.sendall(json.dumps(json_dict).encode())
             data = s.recv(1024).decode()
-            print("Received", repr(data))
-            if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
+            data = data.strip()
+            if data == str(SOCKET_STATUS.WRITE_SUCCESS.value):
                 return STATUS.SUCCESS
             else:
                 return STATUS.ERROR
