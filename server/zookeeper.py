@@ -169,7 +169,7 @@ class ZooKeeper(Broker):
 
     def start_broker(self, broker_id):
         self.update_broker_status(broker_id, True)
-        print(f"Broker {broker.id} started.")
+        print(f"Broker {broker_id} started.")
 
     def stop_broker(self, broker_id):
         self.update_broker_status(broker_id, False)
