@@ -13,7 +13,7 @@ import logging
 from status import STATUS, SOCKET_STATUS
 import random
 
-from metrics import *
+# from metrics import *
 
 app = None
 
@@ -135,7 +135,7 @@ class Broker:
 
     def _pull(self, json_dict):
         self._logger.info(f"Received PULL message {json_dict}")
-        pull_request_metrics.inc()
+        # pull_request_metrics.inc()
         try:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
@@ -193,19 +193,19 @@ class Broker:
         await writer.wait_closed()
 
     async def read_root(self):
-        response_200_metrics.inc()
+        # response_200_metrics.inc()
         return fastapi.Response(content="Hello, World", status_code=200)
 
     async def get_zookeeper(self):
-        response_200_metrics.inc()
+        # response_200_metrics.inc()
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
     
     async def gen_metrics(self):
         self._logger.info(f"inside gen_metrics")
-        registry = CollectorRegistry()
-        multiprocess.MultiProcessCollector(registry)
-        data = generate_latest(registry)
-        return fastapi.Response(content=data, media_type=CONTENT_TYPE_LATEST, status_code=200)
+        # registry = CollectorRegistry()
+        # multiprocess.MultiProcessCollector(registry)
+        # data = generate_latest(registry)
+        # return fastapi.Response(content=data, media_type=CONTENT_TYPE_LATEST, status_code=200)
 
     async def socket_thread(self):
         server = await asyncio.start_server(
