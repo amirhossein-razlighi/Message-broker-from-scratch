@@ -203,11 +203,14 @@ class Broker:
 
     def initiate(self):
         # Create socket
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect((self._zookeeper['host'], self._zookeeper['socket_port']))
-            broker_info = f"initiate :{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
-            client_socket.sendall(broker_info.encode())
-            print("Broker initiated and connected to the leader.")
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+                client_socket.connect((self._zookeeper['host'], self._zookeeper['socket_port']))
+                broker_info = f"initiate :{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
+                client_socket.sendall(broker_info.encode())
+                print("Broker initiated and connected to the leader.")
+        except:
+            print("Broker could not connect to the leader.")
 
     def run(self, host=None, http_port=None, socket_port=None):
         self.initiate()
