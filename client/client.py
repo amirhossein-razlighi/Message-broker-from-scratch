@@ -71,6 +71,8 @@ async def pull_message():
     }
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
+    if repr(data).startswith('Brokers'):
+        return
     host_b, port_b = data.split(',')
     port_b = int(port_b)
 
