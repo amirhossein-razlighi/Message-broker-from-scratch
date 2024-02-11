@@ -9,6 +9,7 @@ import asyncio
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
+import random
 
 executor = ThreadPoolExecutor(max_workers=1)
 
@@ -101,10 +102,20 @@ async def main():
     # if master_ip is None:
     #     print("No master found")
     #     return
-    # host_name = os.getenv("BROKER")
-    host_name = "127.0.0.1"
-    # client_socket = open_connection(host_name, port)
+    host_name = os.getenv("BROKER")
+    client_socket = open_connection(host_name, port)
+    
+    while True:
+        print("Pushing messages")
+        for _ in range(10):
+            key = "key " + str(random.randint(0, 100))
+            value = "value " + str(random.randint(0, 100))
+            await push_message(key, value)
+        print("Pulling messages")
+        await pull_message()
+        break
 
+    """ Interactive TEST:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         client_socket = s
         s.connect((host_name, port))
@@ -128,7 +139,7 @@ async def main():
             else:
                 print("Invalid choice")
         client_socket.close()
-
+    """
 
 if __name__ == "__main__":
     asyncio.run(main())
