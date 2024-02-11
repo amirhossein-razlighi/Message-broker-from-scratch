@@ -29,19 +29,16 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
     restart: always
- 
+
   brokers:
     image: amirhosseinrazlighi/server_app:latest
     deploy:
       mode: replicated
       replicas: 3
     depends_on:
-      - zookeepers
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      zookeepers:
+        condition: service_healthy
+    # entrypoint: sleep 10000
     environment:
       - ZOOKEEPER=sad-zookeepers-1
 
@@ -49,7 +46,8 @@ services:
     image: amirhosseinrazlighi/zookeeper_app:latest
     deploy:
       mode: replicated
-      replicas: 1
+      replicas: 2
+    # entrypoint: sleep 10000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 20s
@@ -63,8 +61,6 @@ services:
       replicas: 1
     # entrypoint: sleep 10000
     depends_on:
-      brokers:
-        condition: service_healthy
       zookeepers:
         condition: service_healthy
     environment:
