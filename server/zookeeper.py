@@ -15,7 +15,7 @@ import asyncio
 from replica import Replica
 from pqueue import Pqueue
 
-from server.metrics import *
+from metrics import *
 
 
 def hash_function(key):
@@ -181,6 +181,7 @@ class ZooKeeper(Broker):
 
         app.add_api_route("/", self.read_root, methods=["GET"])
         app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
+        app.add_api_route("/metrics", self.gen_metrics, methods=["GET"])
 
         socket_thread = threading.Thread(
             target=asyncio.run, args=(self.socket_thread(),)
@@ -231,6 +232,7 @@ class ZooKeeper(Broker):
         return random.choice(brokers)
 
     def _push_to_broker(self, broker, json_dict):
+        start_time = time.time()
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((broker.host, broker.socket_port))
             s.sendall(json.dumps(json_dict).encode())
@@ -238,9 +240,12 @@ class ZooKeeper(Broker):
             data = s.recv(1024)
             print("Received", repr(data))
             if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
-                return STATUS.SUCCESS
+                status = STATUS.SUCCESS
             else:
-                return STATUS.ERROR
+                status = STATUS.ERROR
+
+            cal_response_time(start_time, resp_insert_request)
+            return status
 
     # Overriding the Broker's "handle_client" method
     async def handle_client(self, reader, writer):

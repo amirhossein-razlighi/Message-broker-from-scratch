@@ -10,7 +10,7 @@ import logging
 from status import STATUS, SOCKET_STATUS
 import random
 
-from server.metrics import *
+from metrics import *
 
 app = None
 
@@ -115,6 +115,7 @@ class Broker:
 
     def _pull(self, json_dict):
         self._logger.info(f"Received PULL message {json_dict}")
+        pull_request_metrics.inc()
         try:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
@@ -175,11 +176,12 @@ class Broker:
         response_200_metrics.inc()
         return fastapi.Response(content=json.dumps(self._zookeeper), status_code=200)
     
-    async def gen_metrics(self):
+    def gen_metrics(self):
+        self._logger.info(f"inside gen_metrics")
         registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(registry)
         data = generate_latest(registry)
-        return fastapi.Response(content=data, media_type=CONTENT_TYPE_LATEST)
+        return fastapi.Response(content=json.dumps(data), status_code=200)
 
     async def socket_thread(self):
         server = await asyncio.start_server(
@@ -204,7 +206,7 @@ class Broker:
 
         app.add_api_route("/", self.read_root, methods=["GET"])
         app.add_api_route("/zookeeper", self.get_zookeeper, methods=["GET"])
-        app.add_api_route("/metrics", self)
+        app.add_api_route("/metrics", self.gen_metrics, methods=["GET"])
 
         socket_thread = threading.Thread(
             target=asyncio.run, args=(self.socket_thread(),)

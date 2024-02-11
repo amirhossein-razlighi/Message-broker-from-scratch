@@ -1,7 +1,7 @@
 FROM python:3.10-slim-buster
 
-COPY . ./app
-COPY requirements.txt ./app
+COPY . /app
+COPY requirements.txt /app
 
 WORKDIR /app
 
@@ -12,6 +12,5 @@ RUN apt-get -y install curl
 
 EXPOSE 8000
 EXPOSE 8888
-EXPOSE 7500
 
 ENTRYPOINT [ "python", "broker.py" ]
