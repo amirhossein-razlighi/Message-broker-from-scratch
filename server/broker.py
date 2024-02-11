@@ -87,7 +87,8 @@ class Broker:
                     self._logger.info(f"Selected subscriber {selected_subscriber}")
                     self._logger.info(f"Sending message to subscriber {selected_subscriber}")
                     print(f"Sending message to subscriber {selected_subscriber}")
-                    writer.write(message.encode())
+                    response = message + "\n"
+                    writer.write(response.encode())
                     await writer.drain()
                     print(f"Message sent to subscriber {selected_subscriber}")
                     self._logger.info(f"Message sent to subscriber {selected_subscriber}")
@@ -143,22 +144,26 @@ class Broker:
             if json_dict["type"] == "PUSH":
                 status = self._push(json_dict)
                 print(f"Status: {status}")
-                writer.write(
-                    str(SOCKET_STATUS.WRITE_SUCCESS.value).encode()
+                response = (
+                    str(SOCKET_STATUS.WRITE_SUCCESS.value)
                     if status == STATUS.SUCCESS
-                    else str(SOCKET_STATUS.WRITE_FAILED.value).encode()
+                    else str(SOCKET_STATUS.WRITE_FAILED.value)
                 )
+                writer.write((response + "\n").encode())
                 await writer.drain()
             elif json_dict["type"] == "PULL":
                 message = self._pull(json_dict)
+                response = message + "\n" if message is not None else "No message\n"
                 writer.write(message.encode())
                 await writer.drain()
             elif json_dict["type"] == "SUBSCRIBE":
                 status = self._subscribe(addr, json_dict["broker_id"], writer)
-                if status == STATUS.SUCCESS:
-                    writer.write(str(SOCKET_STATUS.SUBSCRIBE_SUCCESS.value).encode())
-                else:
-                    writer.write(str(SOCKET_STATUS.SUBSCRIBE_FAILED.value).encode())
+                response = (
+                    str(SOCKET_STATUS.SUBSCRIBE_SUCCESS.value)
+                    if status == STATUS.SUCCESS
+                    else str(SOCKET_STATUS.SUBSCRIBE_FAILED.value)
+                )
+                writer.write((response + "\n").encode())
             else:
                 writer.write("Invalid".encode())
 

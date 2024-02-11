@@ -20,7 +20,7 @@ logging.log(logging.INFO, "Client started")
 # find the master zookeeper
 def find_master():
     for ip in zookeeper_ips:
-        response = requests.get(f"{ip}/master")
+        response = requests.get(f"{ip}/zookeeper")
         if response.status_code == 200:
             return ip
     return None
@@ -91,14 +91,16 @@ def main():
     # if master_ip is None:
     #     print("No master found")
     #     return
-    host_name = os.getenv("BROKER")
+    # host_name = os.getenv("BROKER")
+    host_name = "127.0.0.1"
     client_socket = open_connection(host_name, port)
+
     # client_socket = open_connection("127.0.0.1", 8000)
     # while True:
     #     if client_socket is None:
     #         print("Error occured")
 
-    #     push_message("Hello", "world")
+        # push_message("Hello", "world")
     #     sleep(5)
 
     """
