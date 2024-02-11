@@ -97,7 +97,6 @@ async def subscribe(f: Callable):
         "type": "SUBSCRIBE",
         "broker_id": "0"
     }
-
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
     print(f"Received from server: {repr(data)}")
@@ -125,9 +124,14 @@ async def main():
     #     print("No master found")
     #     return
     
-    # host_name = os.getenv("ZOOKEEPER")
-    host_name = "127.0.0.1"
+    host_name = os.getenv("ZOOKEEPER")
     client_socket = open_connection(host_name, port)
+
+    await push_message("1", "a")
+    await push_message("1", "b")
+    await push_message("1", "v")
+    await pull_message()
+
     """ TEST SUBSCRIBE/PUSH/PULL
     loop = asyncio.get_event_loop()
     loop.run_until_complete(subscribe(None))
@@ -149,7 +153,7 @@ async def main():
         await pull_message()
         break
     """
-
+    """ INTERACTIVE TEST
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         client_socket = s
         s.connect((host_name, port))
@@ -176,7 +180,7 @@ async def main():
             except:
                 continue
         client_socket.close()
-
+    """
 # Example test scenarios in the client
 
 def test_add_brokers_and_replicas():
