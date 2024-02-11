@@ -42,8 +42,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - local
     environment:
       - ZOOKEEPER=sad-zookeepers-1
 
@@ -57,8 +55,6 @@ services:
       interval: 20s
       timeout: 10s
       retries: 3
-    networks:
-      - local
 
   clients:
     image: amirhosseinrazlighi/client_app:latest
@@ -74,8 +70,6 @@ services:
     environment:
       - BROKER=sad-brokers-1
       - ZOOKEEPER=sad-zookeepers-1
-    networks:
-      - local
 
 
 networks:
