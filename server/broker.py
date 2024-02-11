@@ -64,6 +64,8 @@ class Broker:
         message = self._pqueues[part_no].read()
         if message is not None:
             self._logger.info(f"Read message {message} from part_no {part_no}")
+        else:
+            message = "No message"
         return message
 
     def extract_message(self, message):
@@ -81,18 +83,28 @@ class Broker:
     async def _subscribe_checker_and_notifier(self, writer):
         while True:
             try:
-                if not len(self._broker_subscribers) == 0 and (message := self._read(0) is not None):
+                if not len(self._broker_subscribers) == 0 and (
+                    (message := self._read(0)) is not None
+                ):
+                    if message == "No message":
+                        await asyncio.sleep(5)
+                        continue
                     selected_subscriber = random.choice(self._broker_subscribers)
                     self._logger.info(f"Selected subscriber {selected_subscriber}")
-                    self._logger.info(f"Sending message to subscriber {selected_subscriber}")
+                    self._logger.info(
+                        f"Sending message {message} to subscriber {selected_subscriber}"
+                    )
                     print(f"Sending message to subscriber {selected_subscriber}")
-                    writer.write(message.encode())
-                    await writer.drain()
+                    response = message + "\n"
+                    await asyncio.wait_for(writer.write(response.encode()), timeout=5)
+                    # await writer.drain()
                     print(f"Message sent to subscriber {selected_subscriber}")
-                    self._logger.info(f"Message sent to subscriber {selected_subscriber}")
+                    self._logger.info(
+                        f"Message sent to subscriber {selected_subscriber}"
+                    )
             except:
                 continue
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
 
     def _push(self, json_dict):
         self._logger.info(f"Received PUSH message {json_dict}")
@@ -138,30 +150,34 @@ class Broker:
             message = data.decode()
             addr = writer.get_extra_info("peername")
             print(f"Received {message} from {addr}")
-
             json_dict = self.extract_message(message)
             if json_dict["type"] == "PUSH":
                 status = self._push(json_dict)
                 print(f"Status: {status}")
-                writer.write(
-                    str(SOCKET_STATUS.WRITE_SUCCESS.value).encode()
+                response = (
+                    str(SOCKET_STATUS.WRITE_SUCCESS.value)
                     if status == STATUS.SUCCESS
-                    else str(SOCKET_STATUS.WRITE_FAILED.value).encode()
+                    else str(SOCKET_STATUS.WRITE_FAILED.value)
                 )
+                writer.write((response + "\n").encode())
                 await writer.drain()
             elif json_dict["type"] == "PULL":
                 message = self._pull(json_dict)
-                writer.write(message.encode())
+                response = message + "\n" if message is not None else "No message\n"
+                writer.write(response.encode())
                 await writer.drain()
             elif json_dict["type"] == "SUBSCRIBE":
                 status = self._subscribe(addr, json_dict["broker_id"], writer)
-                if status == STATUS.SUCCESS:
-                    writer.write(str(SOCKET_STATUS.SUBSCRIBE_SUCCESS.value).encode())
-                else:
-                    writer.write(str(SOCKET_STATUS.SUBSCRIBE_FAILED.value).encode())
+                response = (
+                    str(SOCKET_STATUS.SUBSCRIBE_SUCCESS.value)
+                    if status == STATUS.SUCCESS
+                    else str(SOCKET_STATUS.SUBSCRIBE_FAILED.value)
+                )
+                print(f"Response: {response}")
+                writer.write((response + "\n").encode())
             else:
                 writer.write("Invalid".encode())
-
+                await writer.drain()
         self._logger.info(f"Closing the connection")
         writer.close()
         await writer.wait_closed()
