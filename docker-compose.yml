@@ -31,7 +31,7 @@ services:
     restart: always
 
   brokers:
-    image: server_app:latest
+    image: amirhosseinrazlighi/server_app:latest
     deploy:
       mode: replicated
       replicas: 3
@@ -43,7 +43,7 @@ services:
       - ZOOKEEPER=sad-zookeepers-1
 
   zookeepers:
-    image: zookeeper_app:latest
+    image: amirhosseinrazlighi/zookeeper_app:latest
     deploy:
       mode: replicated
       replicas: 2
@@ -55,7 +55,7 @@ services:
       retries: 3
 
   clients:
-    image: client_app:latest
+    image: amirhosseinrazlighi/client_app:latest
     deploy:
       mode: replicated
       replicas: 1
