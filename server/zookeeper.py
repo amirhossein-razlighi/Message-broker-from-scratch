@@ -27,15 +27,16 @@ def hash_function(key):
 
 class ZooKeeper(Broker):
     def __init__(self, host, socket_port, http_port, ping_port):
-            super().__init__(host, socket_port, http_port, ping_port)
-            self._broker_list = []
-            self._partitions = {}
-            self._broker_partitions = {}
-            self._brokers = {}  # New dictionary to map broker_id to broker
-            self._global_subscribers = []
-            self._current_broker_index = 0  # Used for round-robin
-            self.addresses = {}
-            self.ping_addresses = {}
+        super().__init__(host, socket_port, http_port, ping_port)
+        self._broker_list = []
+        self._partitions = {}
+        self._broker_partitions = {}
+        self._brokers = {}  # New dictionary to map broker_id to broker
+        self._global_subscribers = []
+        self._current_broker_index = 0  # Used for round-robin
+        self.addresses = {}
+        self.ping_addresses = {}
+        self.is_up = {}
 
     # async def handle_broker(self, reader, writer):
     #     # Receive broker's information
@@ -77,7 +78,7 @@ class ZooKeeper(Broker):
 
             if partition not in self._partitions:
                 self._partitions[partition] = []
-                
+
             self._broker_list.sort()
             print(
                 f"Broker {broker.id} added at position {position} in partition {partition}"
@@ -158,22 +159,22 @@ class ZooKeeper(Broker):
         return self._broker_list[0]
 
     def update_broker_status(self, broker_id, status):
-        if broker_id in self.brokers:
-            self.brokers[broker_id].is_up = status
+        if broker_id in self.is_up:
+            self.is_up[broker_id] = status
         else:
             print(f"Error: Broker {broker_id} not found.")
 
     def get_active_brokers(self):
-        active_brokers = [broker_id for broker_id, data in self.brokers.items() if data.is_up == 1]
+        active_brokers = [broker_id for broker_id, data in self.is_up.items() if data == 1]
         return active_brokers
 
     def start_broker(self, broker_id):
-        self.update_broker_status(broker_id, True)
+        self.update_broker_status(broker_id, 1)
         print(f"Broker {broker_id} started.")
 
     def stop_broker(self, broker_id):
-        self.update_broker_status(broker_id, False)
-        print(f"Broker {broker.id} stopped.")
+        self.update_broker_status(broker_id, 0)
+        print(f"Broker {broker_id} stopped.")
 
     def consume(self):
         for broker_id in self.brokers:
@@ -213,15 +214,15 @@ class ZooKeeper(Broker):
             target=asyncio.run, args=(self.socket_thread(),)
         )
         socket_thread.start()
-        
+
         http_thread = threading.Thread(
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )
         http_thread.start()
-        
+
         health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
         health_check_thread.start()
-        
+
     def choose_broker_for_subscription(self, subscriber):
         broker = self._broker_list[self._current_broker_index][1]
         broker_id = broker.id
@@ -277,6 +278,7 @@ class ZooKeeper(Broker):
                 _, host, port, ping_port, idf = message.split(":")
                 self.addresses[idf] = (host, int(port))
                 self.addresses[idf] = (host, int(ping_port))
+                self.is_up[idf] = 1
                 print(f"Broker at {host}:{port} added to the network.")
             else:
                 addr = writer.get_extra_info("peername")
@@ -294,7 +296,7 @@ class ZooKeeper(Broker):
                 elif json_dict["type"] == "PULL":
                     part_no = json_dict["part_no"]
                     if part_no not in self._pqueues:
-                    # error no such queue
+                        # error no such queue
                         return "Invalid"
                     message = self._read(part_no)
                 elif json_dict["type"] == "SUBSCRIBE":
@@ -309,6 +311,7 @@ class ZooKeeper(Broker):
 
         self._logger.info(f"Closing the connection")
         writer.close()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -325,10 +328,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args.host, args.socket_port, args.http_port, args.ping_port)
 
-
     zookeeper = ZooKeeper(args.host, args.socket_port, args.http_port, args.ping_port)
     zookeeper.run(args.host, args.http_port, args.socket_port)
-
 
 """
 to check single process use this , they worked the single process version.
