@@ -272,7 +272,27 @@ class ZooKeeper(Broker):
                 self.is_up[idf] = 1
                 self.is_empty[idf] = 1
                 print(f"Broker at {host}:{port} added to the network.")
+                broker_id = idf
+                partition = hash_function(broker_id)
+                self._broker_list.append((partition, broker_id))
 
+                if partition not in self._partitions:
+                    self._partitions[partition] = []
+
+                self._broker_list.sort()
+                print(
+                    f"Broker {broker_id} added in partition {partition}"
+                )
+
+                self._partitions[partition].append(broker_id)
+                self._broker_partitions[broker_id] = partition
+
+                self._broker_list.sort()
+
+#                if replica is not None:
+ #                   self.add_replica(broker_id)
+
+                return 'Broker added successfully'
             else:
                 addr = writer.get_extra_info("peername")
                 print(f"Received {message} from {addr}")
