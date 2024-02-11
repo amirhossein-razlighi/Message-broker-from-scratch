@@ -25,4 +25,5 @@ class TestAPI(unittest.TestCase):
         host = "127.0.0.1"
         port = 8005
         response = requests.get(f"http://{host}:{port}/zookeeper")
+        print(response.text)
         self.assertEqual(response.status_code, 200)
