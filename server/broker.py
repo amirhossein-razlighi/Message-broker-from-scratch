@@ -1,4 +1,5 @@
 import asyncio
+import os
 import queue
 import socket
 import json
@@ -14,7 +15,6 @@ import random
 
 app = None
 
-
 uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
 
 
@@ -29,14 +29,13 @@ class Broker:
         self._socket_port = int(socket_port)
         self._http_port = http_port
         self._zookeeper = {
-            "host": host,
-            "http_port": http_port,
-            "socket_port": socket_port,
+            "host": os.getenv('ZOOKEEPER'),
+            "http_port": 8888,
+            "socket_port": 8000,
+            "ping_port": 7500,
         }
         self._create_pqueue(0, False)
         self._broker_subscribers = []
-        self.is_up = 0
-        self.is_empty = 1
         self._logger = logging.getLogger(__name__)
         self._observers = set()
         self._is_replica = False
@@ -70,15 +69,18 @@ class Broker:
         return message
 
     def extract_message(self, message):
-        statements = message.split(",")
-        json_dict = {}
-        print(statements)
-        for statement in statements:
-            key, value = statement.split(":")
-            key = key.split('"')[1]
-            value = value.split('"')[1]
-            # print(key, value)
-            json_dict[key] = value
+        try:
+            statements = message.split(",")
+            json_dict = {}
+            print(statements)
+            for statement in statements:
+                key, value = statement.split(":")
+                key = key.split('"')[1]
+                value = value.split('"')[1]
+                # print(key, value)
+                json_dict[key] = value
+        except:
+            json_dict = {"type": "Invalid"}
         return json_dict
 
     async def _subscribe_checker_and_notifier(self, writer):
@@ -130,6 +132,7 @@ class Broker:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
         except:
+
             part_no = random.choice(list(self._pqueues.keys()))
             self._logger.info(f"Selected part_no {part_no}")
 
@@ -176,8 +179,7 @@ class Broker:
                 print(f"Response: {response}")
                 writer.write((response + "\n").encode())
             else:
-                writer.write("Invalid".encode())
-                await writer.drain()
+                break
         self._logger.info(f"Closing the connection")
         writer.close()
         await writer.wait_closed()
@@ -199,7 +201,16 @@ class Broker:
         async with server:
             await server.serve_forever()
 
+    def initiate(self):
+        # Create socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((self._zookeeper['host'], self._zookeeper['socket_port']))
+            broker_info = f"initiate :{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
+            client_socket.sendall(broker_info.encode())
+            print("Broker initiated and connected to the leader.")
+
     def run(self, host=None, http_port=None, socket_port=None):
+        self.initiate()
         if host is None:
             host = self._host
         if http_port is None:
