@@ -71,9 +71,8 @@ async def pull_message():
     }
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
-    print(f"Received from server: {repr(data)}")
-
     if repr(data).startswith('Brokers'):
+        print(repr(data))
         return
     host_b, port_b = data.split(',')
     port_b = int(port_b)
@@ -89,31 +88,45 @@ async def pull_message():
 
 
 async def subscribe(f: Callable):
+    global client_subscribe_socket
     if client_socket is None:
         # TODO return error
         return None
 
-    message = {
+    message_0 = {
         "type": "SUBSCRIBE",
-        "broker_id": "0"
+        # "broker_id": "0"
     }
-    client_socket.send(json.dumps(message).encode())
+
+    client_socket.send(json.dumps(message_0).encode())
     data = client_socket.recv(1024).decode()
-    print(f"Received from server: {repr(data)}")
-    threading.Thread(target=receive_message, args=(f,), daemon=True).start()
+    if repr(data).startswith("There is not"):
+        print(repr(data))
+        return
+    host_b, port_b, bid = data.split(',')
+    port_b = int(port_b)
+    client_subscribe_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_subscribe_socket.connect((host_b, port_b))
+    message_1 = {"type": "SUBSCRIBE",
+                 "broker_id": bid
+                 }
+    client_subscribe_socket.send(json.dumps(message_1).encode())
+    new_data = client_subscribe_socket.recv(1024).decode()
+
+    print(f"Received from server: {repr(new_data)}")
+    threading.Thread(target=receive_message, daemon=True, args=(f,)).start()
 
 
 # a function to receive messages from the server (if we are subscribed)
 # but if response doesn't come in 5 seconds, we continue with our work
-def receive_message(f: Callable):
+def receive_message(f:Callable):
+    global client_subscribe_socket
     client_socket.settimeout(3)
     while True:
         try:
-            data = client_socket.recv(1024).decode()
-            if not data == "No message":
-                data = data.strip()
-                if f is not None:
-                    data = f(data)
+            data = client_subscribe_socket.recv(1024).decode()
+            if not repr(data).startswith('No message'):
+                data = f(repr(data).strip)
             print(f"Received from server: {repr(data)}")
         except:
             continue
@@ -122,12 +135,12 @@ def receive_message(f: Callable):
 async def main():
     global client_socket
     global master_ip
-    
+
     # master_ip = find_master()
     # if master_ip is None:
     #     print("No master found")
     #     return
-    
+
     host_name = os.getenv("ZOOKEEPER")
     client_socket = open_connection(host_name, port)
 
@@ -157,34 +170,33 @@ async def main():
         await pull_message()
         break
     """
-    """ INTERACTIVE TEST
+
+    """ Interactive TEST:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         client_socket = s
         s.connect((host_name, port))
         while True:
-            try:
-                print("1. Push message")
-                print("2. Pull message")
-                print("3. Subscribe")
-                print("4. Exit")
-                choice = await get_input("Enter choice: ")
-                choice = int(choice)
-                if choice == 1:
-                    key = await get_input("Enter key: ")
-                    value = await get_input("Enter value: ")
-                    await push_message(key, value)
-                elif choice == 2:
-                    await pull_message()
-                elif choice == 3:
-                    await subscribe(None)
-                elif choice == 4:
-                    break
-                else:
-                    print("Invalid choice")
-            except:
-                continue
+            print("1. Push message")
+            print("2. Pull message")
+            print("3. Subscribe")
+            print("4. Exit")
+            choice = await get_input("Enter choice: ")
+            choice = int(choice)
+            if choice == 1:
+                key = await get_input("Enter key: ")
+                value = await get_input("Enter value: ")
+                await push_message(key, value)
+            elif choice == 2:
+                await pull_message()
+            elif choice == 3:
+                await subscribe(None)
+            elif choice == 4:
+                break
+            else:
+                print("Invalid choice")
         client_socket.close()
     """
+
 # Example test scenarios in the client
 
 def test_add_brokers_and_replicas():
