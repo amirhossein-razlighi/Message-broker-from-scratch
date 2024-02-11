@@ -262,27 +262,22 @@ class ZooKeeper(Broker):
                 print(
                     f"Broker {broker_id} added in partition {partition}"
                 )
-
                 self._partitions[partition].append(broker_id)
                 self._broker_partitions[broker_id] = partition
                 self._broker_list.sort()
                 # replica
-                new_broker = Pqueue(broker_id, is_replica=True)
                 other_partitions = [p for p in self._partitions if p != partition]
                 if not other_partitions:
                     print("No other partitions available to add the replica.")
                     return
                 replica_partition = random.choice(other_partitions)
-
                 if replica_partition not in self._partitions:
                     self._partitions[replica_partition] = []
-
-                self._partitions[replica_partition].append(new_broker)
-                self._broker_partitions[new_broker] = replica_partition
-                new_broker._pqueues[partition] = Pqueue(partition, is_replica=True)
+                new_replica = Pqueue(replica_partition, is_replica=True)
+                self._partitions[replica_partition].append(new_replica)
+                self._broker_partitions[new_replica] = replica_partition
                 broker = self._brokers[broker_id]
-                broker.register(new_broker)  # register new_broker as an observer to the original broker
-                self._brokers[new_broker.id] = new_broker
+                broker.register(new_replica)  # register new_broker as an observer to the original broker
                 print("Replica added successfully")
                 print('Broker added successfully')
 
