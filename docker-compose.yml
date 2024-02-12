@@ -46,11 +46,8 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
-      - '--collector.diskstats.ignored-devices=^(ram|loop|fd)d+$'
       - '--web.listen-address=0.0.0.0:9100'
       - '--log.level=info'
-      - '--collector.processes'
-      - '--collector.filesystem.mount-points-exclude'
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
 
   brokers:
