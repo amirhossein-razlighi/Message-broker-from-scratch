@@ -22,7 +22,7 @@ import asyncio
 
 from pqueue import Pqueue
 
-# from metrics import *
+from metrics import *
 
 
 class ZooKeeper(Broker):
