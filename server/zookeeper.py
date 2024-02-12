@@ -84,7 +84,7 @@ class ZooKeeper(Broker):
             print(f"Error: Broker {broker_id} not found.")
 
     def hash_function(self, key):
-        return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (len(self._brokers)+1)
+        return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (len(self._brokers) + 1)
 
     def get_active_brokers(self):
         active_brokers = [broker_id for broker_id, data in self.is_up.items() if data == 1]
@@ -96,7 +96,9 @@ class ZooKeeper(Broker):
 
     def stop_broker(self, broker_id):
         self.update_broker_status(broker_id, 0)
-        print(f"Broker {broker_id} stopped.")
+        # TODO remove broker from every where
+        self.ping_addresses.pop(broker_id)
+        self._logger.info(f"Broker {broker_id} removed.")
 
     def consume(self, command='pull'):
         if command == 'sub':
@@ -113,26 +115,30 @@ class ZooKeeper(Broker):
         return None
 
     def send_heartbeat(self, broker_id):
-        broker_address = self.ping_addresses[broker_id]
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(3)
-                s.connect(broker_address)
-                s.sendall(b"PING")
-                self.start_broker(broker_id)
-                print(f"Sent heartbeat to {broker_address}")
-        except socket.timeout:
-            self.stop_broker(broker_id)
-            print(f"Timeout sending heartbeat to {broker_address}")
-        except Exception as e:
-            self.stop_broker(broker_id)
-            print(f"Error sending heartbeat to {broker_address}: {e}")
+        broker_address = self.ping_addresses[broker_id][0]
+        ping_resp = os.system(f"ping -c 1 {broker_address} > /dev/null 2>&1")
+        if ping_resp == 0:
+            return True  # Broker is up
+        else:
+            return False
 
     def health_check_thread(self):
+        self._logger.info("health check is starting")
+        self._logger.info(f"Broker list: {self.ping_addresses}")
         while True:
             for broker_id in self.ping_addresses:
-                self.send_heartbeat(broker_id)
-            time.sleep(5)
+                broker_is_up = self.send_heartbeat(broker_id)
+                self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is being pinged")
+                if not broker_is_up:
+                    # try 3 more times with distance if broker is not up, call stop_broker
+                    for _ in range(3):
+                        broker_is_up = self.send_heartbeat(broker_id)
+                        time.sleep(0.2)
+                    if not broker_is_up:
+                        self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is down")
+                        self.stop_broker(broker_id)
+
+            time.sleep(3)
 
     def run(self, host=None, http_port=None, socket_port=None):
         if host is None:
@@ -153,13 +159,13 @@ class ZooKeeper(Broker):
         )
         socket_thread.start()
 
+        health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
+        health_check_thread.start()
+
         http_thread = threading.Thread(
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )
         http_thread.start()
-
-        health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
-        health_check_thread.start()
 
     def choose_broker_for_subscription(self, subscriber):
         broker = self._broker_list[self._current_broker_index][1]

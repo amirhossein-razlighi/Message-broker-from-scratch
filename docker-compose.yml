@@ -54,20 +54,25 @@ services:
     image: amirhosseinrazlighi/server_app:latest
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 1
     depends_on:
-      zookeepers:
-        condition: service_healthy
-    # entrypoint: sleep 10000
+       zookeepers:
+         condition: service_healthy
+#    entrypoint: sleep 10000
     environment:
       - ZOOKEEPER=sad-zookeepers-1
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8888" ]
+      interval: 20s
+      timeout: 10s
+      retries: 3
 
   zookeepers:
     image: amirhosseinrazlighi/zookeeper_app:latest
     deploy:
       mode: replicated
-      replicas: 2
-    # entrypoint: sleep 10000
+      replicas: 1
+#    entrypoint: sleep 10000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 20s
@@ -81,7 +86,7 @@ services:
       replicas: 1
     # entrypoint: sleep 10000
     depends_on:
-      zookeepers:
+      brokers:
         condition: service_healthy
     environment:
       - BROKER=sad-brokers-1
