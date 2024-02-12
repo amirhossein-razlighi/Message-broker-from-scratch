@@ -1,0 +1,13 @@
+groups:
+- name: alertgroup
+  rules:
+
+  - alert: ResponseTimeHigh
+    expr: sad_response_time_push > 0.5
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Response time is too high"
+      description: "for more than 1 minutes"
+

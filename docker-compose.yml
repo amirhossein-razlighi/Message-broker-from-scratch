@@ -1,0 +1,77 @@
+version: '3.8'
+
+volumes:
+  prometheus_data:
+  grafana_data:
+services:
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus:/etc/prometheus/
+  #     - prometheus_data:/prometheus
+  #   command:
+  #     - "--config.file=/etc/prometheus/prometheus.yml"
+  #     - "--storage.tsdb.path=/prometheus"
+  #     - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+  #     - "--web.console.templates=/usr/share/prometheus/consoles"
+  #     - "--web.enable-lifecycle"
+  #     - "--web.route-prefix=/"
+  #     - "--web.external-url=http://127.0.0.1:9090/prometheus"
+  #     - "--web.listen-address=0.0.0.0:9090"
+  #   # restart: always
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   restart: always
+
+  brokers:
+    image: server_app:latest
+    deploy:
+      mode: replicated
+      replicas: 3
+    # entrypoint: sleep 10000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    environment:
+      - ZOOKEEPER=sad-zookeepers-1
+
+  zookeepers:
+    image: zookeeper_app:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+    # entrypoint: sleep 10000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+
+  clients:
+    image: client_app:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+    # entrypoint: sleep 10000
+    depends_on:
+      zookeepers:
+          condition: service_healthy
+      brokers:
+          condition: service_healthy
+    environment:
+      - BROKER=sad-brokers-1
+      - ZOOKEEPER=sad-zookeepers-1
+
+
+networks:
+  default:
+    driver: bridge
