@@ -291,17 +291,23 @@ class ZooKeeper(Broker):
                     my_tuple = (broker_id, partition)
                     self.first_replica.append(my_tuple)
                 if len(self._brokers)>2:
+                    if partition not in self._partitions_replica:
+                        self._partitions_replica[partition] = []
                     self._partitions_replica[partition] = other_broker_id
                     other_Broker=self._brokers[other_broker_id]
                     other_Broker._create_pqueue(partition,is_replica=True)
                     print("Replica Created successfully")
                 if len(self._brokers)==2:
+                    if partition not in self._partitions_replica:
+                        self._partitions_replica[partition] = []
                     self._partitions_replica[partition] = other_broker_id
                     other_Broker=self._brokers[other_broker_id]
                     other_Broker._create_pqueue(partition,is_replica=True)
                     my_tuple = self.first_replica[0]
                     first_broker_id = my_tuple[0]
                     first_partition = my_tuple[1]
+                    if first_partition not in self._partitions_replica:
+                        self._partitions_replica[first_partition] = []
                     self._partitions_replica[first_partition] = first_broker_id
                     other_Broker=self._brokers[first_broker_id]
                     other_Broker._create_pqueue(first_partition,is_replica=True)
