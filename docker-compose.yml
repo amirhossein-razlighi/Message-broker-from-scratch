@@ -26,9 +26,29 @@ services:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
+    depends_on:
+      - prometheus
     volumes:
       - grafana_data:/var/lib/grafana
     restart: always
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+    ports:
+      - "9100:9100"
+    pid: host
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--web.listen-address=0.0.0.0:9100'
+      - '--log.level=info'
+      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
 
   brokers:
     image: amirhosseinrazlighi/server_app:latest
