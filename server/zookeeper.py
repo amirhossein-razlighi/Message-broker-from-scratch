@@ -245,111 +245,114 @@ class ZooKeeper(Broker):
 
     # Overriding the Broker's "handle_client" method
     async def handle_client(self, reader, writer):
-        data = await reader.read(100)
-        message = data.decode()
-        host = writer.get_extra_info('peername')[0]
-        port = writer.get_extra_info('peername')[1]
-        print(f"Received {message} from {(host, port)}")
-        if message.startswith("initiate"):
-            a, b, port, ping_port, idf = message.split(":")
-            host = socket.gethostbyname(host)
-            self.addresses[idf] = (host, int(port))
-            self.ping_addresses[idf] = (host, int(ping_port))
-            self.is_up[idf] = 1
-            self.is_empty[idf] = 1
-            print(f"Broker at {host}:{port} added to the network.")
-            broker_id = idf
-            partition = self.hash_function(broker_id)
-            self._broker_list.append((partition, broker_id))
-            # I dont know if socket_port, http_port are like this or not based on the broker I did this
-            self._brokers[broker_id] = Broker(host, 8000, 8888, ping_port)
-            if partition not in self._partitions:
-                self._partitions[partition] = []
+        while True:
+            data = await reader.read(100)
+            message = data.decode()
+            host = writer.get_extra_info('peername')[0]
+            port = writer.get_extra_info('peername')[1]
+            print(f"Received {message} from {(host, port)}")
+            if message.startswith("initiate"):
+                a, b, port, ping_port, idf = message.split(":")
+                host = socket.gethostbyname(host)
+                self.addresses[idf] = (host, int(port))
+                self.ping_addresses[idf] = (host, int(ping_port))
+                self.is_up[idf] = 1
+                self.is_empty[idf] = 1
+                print(f"Broker at {host}:{port} added to the network.")
+                broker_id = idf
+                partition = self.hash_function(broker_id)
+                self._broker_list.append((partition, broker_id))
+                # I dont know if socket_port, http_port are like this or not based on the broker I did this
+                self._brokers[broker_id] = Broker(host, 8000, 8888, ping_port)
+                if partition not in self._partitions:
+                    self._partitions[partition] = []
 
-            self._broker_list.sort()
-            print(
-                f"Broker {broker_id} added in partition {partition}"
-            )
-            self._partitions[partition].append(broker_id)
-            self._broker_partitions[broker_id] = partition
-            # replica
-            other_partitions = [p for p in self._partitions if p != partition]
-            if not other_partitions:
-                print("No other partitions available to add the replica.")
-                if len(self.first_replica) == 0:
-                    my_tuple = (broker_id, partition)
-                    self.first_replica.append(my_tuple)
-            if len(self._broker_list) == 2:
-                replica_partition = random.choice(other_partitions)
-                if replica_partition not in self._partitions:
-                    self._partitions[replica_partition] = []
-                new_replica = Pqueue(replica_partition, is_replica=True)
-                self._partitions[replica_partition].append(new_replica)
-                self._broker_partitions[new_replica] = replica_partition
-                broker = self._brokers[broker_id]
-                broker.register(new_replica)  # register new_broker as an observer to the original broker
-                # add the first replica as well
-                my_tuple = self.first_replica[0]
-                # Get the first and second element of the tuple
-                first_broker_id = my_tuple[0]
-                first_partition = my_tuple[1]
-                other_partitions = [p for p in self._partitions if p != first_partition]
-                replica_partition = random.choice(other_partitions)
-                if replica_partition not in self._partitions:
-                    self._partitions[replica_partition] = []
-                new_replica = Pqueue(replica_partition, is_replica=True)
-                self._partitions[replica_partition].append(new_replica)
-                self._broker_partitions[new_replica] = replica_partition
-                broker = self._brokers[first_broker_id]
-                broker.register(new_replica)
-                print("Replica added successfully")
-                print('Broker added successfully')
-                print("Replica added successfully")
-                print('Broker added successfully')
-            if len(self._broker_list) > 2:
-                replica_partition = random.choice(other_partitions)
-                if replica_partition not in self._partitions:
-                    self._partitions[replica_partition] = []
-                new_replica = Pqueue(replica_partition, is_replica=True)
-                self._partitions[replica_partition].append(new_replica)
-                self._broker_partitions[new_replica] = replica_partition
-                broker = self._brokers[broker_id]
-                broker.register(new_replica)  # register new_broker as an observer to the original broker
-                print("Replica added successfully")
-                print('Broker added successfully')
+                self._broker_list.sort()
+                print(
+                    f"Broker {broker_id} added in partition {partition}"
+                )
+                self._partitions[partition].append(broker_id)
+                self._broker_partitions[broker_id] = partition
+                # replica
+                other_partitions = [p for p in self._partitions if p != partition]
+                if not other_partitions:
+                    print("No other partitions available to add the replica.")
+                    if len(self.first_replica) == 0:
+                        my_tuple = (broker_id, partition)
+                        self.first_replica.append(my_tuple)
+                if len(self._broker_list) == 2:
+                    replica_partition = random.choice(other_partitions)
+                    if replica_partition not in self._partitions:
+                        self._partitions[replica_partition] = []
+                    new_replica = Pqueue(replica_partition, is_replica=True)
+                    self._partitions[replica_partition].append(new_replica)
+                    self._broker_partitions[new_replica] = replica_partition
+                    broker = self._brokers[broker_id]
+                    broker.register(new_replica)  # register new_broker as an observer to the original broker
+                    # add the first replica as well
+                    my_tuple = self.first_replica[0]
+                    # Get the first and second element of the tuple
+                    first_broker_id = my_tuple[0]
+                    first_partition = my_tuple[1]
+                    other_partitions = [p for p in self._partitions if p != first_partition]
+                    replica_partition = random.choice(other_partitions)
+                    if replica_partition not in self._partitions:
+                        self._partitions[replica_partition] = []
+                    new_replica = Pqueue(replica_partition, is_replica=True)
+                    self._partitions[replica_partition].append(new_replica)
+                    self._broker_partitions[new_replica] = replica_partition
+                    broker = self._brokers[first_broker_id]
+                    broker.register(new_replica)
+                    print("Replica added successfully")
+                    print('Broker added successfully')
+                    print("Replica added successfully")
+                    print('Broker added successfully')
+                if len(self._broker_list) > 2:
+                    replica_partition = random.choice(other_partitions)
+                    if replica_partition not in self._partitions:
+                        self._partitions[replica_partition] = []
+                    new_replica = Pqueue(replica_partition, is_replica=True)
+                    self._partitions[replica_partition].append(new_replica)
+                    self._broker_partitions[new_replica] = replica_partition
+                    broker = self._brokers[broker_id]
+                    broker.register(new_replica)  # register new_broker as an observer to the original broker
+                    print("Replica added successfully")
+                    print('Broker added successfully')
 
-        else:
-            addr = writer.get_extra_info("peername")
-            print(f"Received {message} from {addr}")
+            else:
+                addr = writer.get_extra_info("peername")
+                print(f"Received {message} from {addr}")
 
-            json_dict = self.extract_message(message)
-            if json_dict["type"] == "PUSH":
-                status = self._push(json_dict)
-                status = STATUS.SUCCESS
-                print(f"Status: {status}")
-                if status == STATUS.SUCCESS:
-                    response = str(SOCKET_STATUS.WRITE_SUCCESS.value)
-                    writer.write(response.encode())
+                json_dict = self.extract_message(message)
+                if json_dict["type"] == "PUSH":
+                    status = self._push(json_dict)
+                    status = STATUS.SUCCESS
+                    print(f"Status: {status}")
+                    if status == STATUS.SUCCESS:
+                        response = str(SOCKET_STATUS.WRITE_SUCCESS.value)
+                        writer.write(response.encode())
+                    else:
+                        writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
+                    print(f"Sent {SOCKET_STATUS.WRITE_SUCCESS.value}")
+                    await writer.drain()
+                elif json_dict["type"] == "PULL":
+                    broker_id = self.consume()
+                    if broker_id is not None:
+                        writer.write(','.join(str(x) for x in self.addresses[broker_id]).encode())
+                    else:
+                        writer.write('Brokers are empty'.encode())
+                    await writer.drain()
+
+                elif json_dict["type"] == "SUBSCRIBE":
+                    broker_id = self.consume('sub')
+                    if broker_id is not None:
+                        text = ','.join(str(x) for x in self.addresses[broker_id]) + ',' + broker_id
+                        writer.write(text.encode())
+                    else:
+                        writer.write('There is not broker'.encode())
+                    await writer.drain()
                 else:
-                    writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
-                print(f"Sent {SOCKET_STATUS.WRITE_SUCCESS.value}")
-                await writer.drain()
-            elif json_dict["type"] == "PULL":
-                broker_id = self.consume()
-                if broker_id is not None:
-                    writer.write(','.join(str(x) for x in self.addresses[broker_id]).encode())
-                else:
-                    writer.write('Brokers are empty'.encode())
-                await writer.drain()
-
-            elif json_dict["type"] == "SUBSCRIBE":
-                broker_id = self.consume('sub')
-                if broker_id is not None:
-                    text = ','.join(str(x) for x in self.addresses[broker_id]) + ',' + broker_id
-                    writer.write(text.encode())
-                else:
-                    writer.write('There is not broker'.encode())
-                await writer.drain()
+                    break
 
         self._logger.info(f"Closing the connection")
         writer.close()
