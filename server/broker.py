@@ -36,24 +36,19 @@ class Broker:
             "socket_port": 8000,
             "ping_port": 7500,
         }
-        self._create_pqueue(0, False)
+        self.create_pqueue(0, False)
         self._broker_subscribers = []
         self._logger = logging.getLogger(__name__)
-        self._observers = set()
         self._is_replica = False
         self.ping_port = ping_port
         self.is_zookeeper_nominee = False
 
     def __str__(self):
-        return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica}, observers={self._observers})"
+        return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica})"
 
-    def register(self, observer):
-        self._observers.add(observer)
 
-    def unregister(self, observer):
-        self._observers.remove(observer)
 
-    def _create_pqueue(self, part_no, is_replica):
+    def create_pqueue(self, part_no, is_replica):
         self._pqueues[part_no] = Pqueue(part_no, is_replica)
 
     def _read(self, part_no):
@@ -119,16 +114,7 @@ class Broker:
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
         self.is_empty = 0  # TODO ?
-        # write notify for each replica
-        print(f"Broker {self.id} notifying observers...")
-        for observer in self._observers:
-            if observer.is_replica:
-                self._logger.info(f"Writing message {json_dict['value']} to replica part_no {part_no}")
-                print(f"Received PUSH message for Replica {json_dict}")
-                print(f"Writing message {json_dict['value']} to replica part_no {observer.part_no}")
-                message = self._pqueues[observer.part_no].write_new_message(json_dict["value"])
-                self._logger.info(f"Message written to part_no {observer.part_no}")
-                print(f"Message written to part_no {observer.part_no}")
+
 
         return STATUS.SUCCESS
 
