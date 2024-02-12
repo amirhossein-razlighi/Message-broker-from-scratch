@@ -28,17 +28,26 @@ from metrics import *
 class ZooKeeper(Broker):
     def __init__(self, host, socket_port, http_port, ping_port):
         super().__init__(host, socket_port, http_port, ping_port)
-        self._broker_list = []
-        self._partitions = {}
+        self.is_master = False # check if the current zookeeper is master zookeeper
+        self.addresses = {} # dictionary of brokers_idf to the tuple of (broker_host_ip, broker_socket_port)
+        self._partitions = {} # dict: partition_number -> active broker_id
+        self._partitions_replica = {} # dict: partition_number -> replica broker_id
+        # check if the broker is up or down
+        self.is_up = {}
+        # check if the broker is empty or not
+        self.is_empty = {}
+        self.ping_addresses = {}
+        
+
+
+        self._broker_list = [] # (partition_id, broker_id)
         self._broker_partitions = {}
         self._brokers = {}  # New dictionary to map broker_id to broker
-        self._global_subscribers = []
         self._current_broker_index = 0  # Used for round-robin
-        self.addresses = {}
-        self.ping_addresses = {}
-        self.is_up = {}
-        self.is_empty = {}
+
+        self._global_subscribers = []
         self.is_zookeeper_nominee = True
+
         self.first_replica = []
 
     # async def handle_broker(self, reader, writer):
@@ -130,8 +139,9 @@ class ZooKeeper(Broker):
 
     def health_check_thread(self):
         while True:
-            for broker_id in self.ping_addresses:
-                self.send_heartbeat(broker_id)
+            for broker_address in self.ping_addresses:
+                print("Checking broker", broker_address)
+                self.send_heartbeat(broker_address)
             time.sleep(5)
 
     def run(self, host=None, http_port=None, socket_port=None):
@@ -250,8 +260,10 @@ class ZooKeeper(Broker):
                 host = socket.gethostbyname(host)
                 self.addresses[idf] = (host, int(port))
                 self.ping_addresses[idf] = (host, int(ping_port))
+
                 self.is_up[idf] = 1
                 self.is_empty[idf] = 1
+
                 print(f"Broker at {host}:{port} added to the network.")
                 broker_id = idf
                 partition = self.hash_function(broker_id)
@@ -262,7 +274,7 @@ class ZooKeeper(Broker):
 
                 self._broker_list.sort()
                 print(
-                    f"Broker {broker_id} added in partition {partition}"
+                    f"partition {partition} added in broker {broker_id}"
                 )
                 self._partitions[partition].append(broker_id)
                 self._broker_partitions[broker_id] = partition

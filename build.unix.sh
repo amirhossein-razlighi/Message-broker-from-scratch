@@ -4,4 +4,3 @@ sudo docker build -t zookeeper_app:latest -f Dockerfile.zookeeper .
 cd ../client
 sudo docker build -t client_app:latest .
 cd ..
-echo "hi"
