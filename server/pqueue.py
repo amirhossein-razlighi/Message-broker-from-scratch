@@ -25,7 +25,7 @@ class Pqueue:
                 # Error
                 return None
 
-            message = self.queue.pop()  # Get the last message and remove it
+            message = self.queue.pop(0)  # Get the last message and remove it
             print(f"Reading message: {message}")
             return message
 
