@@ -256,7 +256,8 @@ class ZooKeeper(Broker):
                 broker_id = idf
                 partition = self.hash_function(broker_id)
                 self._broker_list.append((partition, broker_id))
-
+                # I dont know if socket_port, http_port are like this or not based on the broker I did this
+                self._brokers[broker_id] = Broker(host, 8000, 8888, ping_port)
                 if partition not in self._partitions:
                     self._partitions[partition] = []
 
@@ -266,7 +267,6 @@ class ZooKeeper(Broker):
                 )
                 self._partitions[partition].append(broker_id)
                 self._broker_partitions[broker_id] = partition
-                self._broker_list.sort()
                 # replica
                 other_partitions = [p for p in self._partitions if p != partition]
                 if not other_partitions:
