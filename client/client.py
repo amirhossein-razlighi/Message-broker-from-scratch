@@ -21,7 +21,7 @@ executor = ThreadPoolExecutor(max_workers=1)
 # from server.replica import Replica
 # from server.zookeeper import ZooKeeper
 
-zookeeper_ips = ['127.0.0.1']
+zookeeper_ips = ["127.0.0.1"]
 port = 8000
 master_ip = None
 client_socket = None
@@ -59,7 +59,7 @@ async def push_message(key: str, value: str):
     if client_socket is None:
         # TODO return error
         return None
-    message = {"type": "PUSH", "key": key, "value": value, "part_no": "0"}
+    message = {"type": "PUSH", "key": key, "value": value}
 
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
@@ -71,16 +71,15 @@ async def pull_message():
     if client_socket is None:
         # TODO return error
         return None
-    message = {
-        "type": "PULL"
-    }
+    message = {"type": "PULL"}
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
-    if repr(data).startswith('Brokers'):
+    if repr(data).startswith("Brokers"):
         print(repr(data))
         return
-    host_b, port_b = data.split(',')
+    host_b, port_b, part_no = data.split(",")
     port_b = int(port_b)
+    message["part_no"] = int(part_no)
 
     # Establish a new connection
     new_client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -100,7 +99,6 @@ async def subscribe(f: Callable):
 
     message_0 = {
         "type": "SUBSCRIBE",
-        # "broker_id": "0"
     }
 
     client_socket.send(json.dumps(message_0).encode())
@@ -108,13 +106,11 @@ async def subscribe(f: Callable):
     if repr(data).startswith("There is not"):
         print(repr(data))
         return
-    host_b, port_b, bid = data.split(',')
+    host_b, port_b, bid, par_no = data.split(",")
     port_b = int(port_b)
     client_subscribe_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_subscribe_socket.connect((host_b, port_b))
-    message_1 = {"type": "SUBSCRIBE",
-                 "broker_id": bid
-                 }
+    message_1 = {"type": "SUBSCRIBE", "broker_id": bid, "part_no": par_no}
     client_subscribe_socket.send(json.dumps(message_1).encode())
     new_data = client_subscribe_socket.recv(1024).decode()
 
@@ -130,10 +126,11 @@ def receive_message(f=None):
     while True:
         try:
             data = client_subscribe_socket.recv(1024).decode()
-            if not repr(data).startswith('No message'):
+            if not repr(data).startswith("No message"):
                 if f:
-                    data = f(repr(data).strip)
-            print(f"Received from server: {repr(data)}")
+                    data = f(repr(data).strip())
+            data = str(data)
+            print(f"Received from server: {data}")
         except:
             continue
 
@@ -155,9 +152,9 @@ async def main():
     await push_message(f"{rand_key}", f"world {rand_value}")
     await push_message(f"{rand_key}", f"world {rand_value + 1}")
     await push_message(f"{rand_key}", f"world {rand_value + 2}")
-    await pull_message()
-    await pull_message()
-    await pull_message()
+    await subscribe(None)
+    # await pull_message()
+    # await pull_message()
 
     """ TEST SUBSCRIBE/PUSH/PULL
     loop = asyncio.get_event_loop()
@@ -209,6 +206,7 @@ async def main():
 
 
 # Example test scenarios in the client
+
 
 def test_add_brokers_and_replicas():
     # Initialize ZooKeeper (you can adapt this based on your actual setup)
