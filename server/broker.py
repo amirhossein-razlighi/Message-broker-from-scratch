@@ -140,6 +140,11 @@ class Broker:
         self._broker_subscribers.append(subscriber)
         asyncio.create_task(self._subscribe_checker_and_notifier(writer))
         return STATUS.SUCCESS
+
+    async def send_message_to_broker(self, host_ip, port, message):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((host_ip, port))
+            client_socket.sendall(message)
     
     async def handle_broker_message(self, reader, writer, addr, message):
         if message['type'] == "ADD_PARTITION":

@@ -254,11 +254,6 @@ class ZooKeeper(Broker):
                 return broker_id
         return None
 
-    async def send_message_to_broker(self, host_ip, port, message):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect((host_ip, port))
-            client_socket.sendall(message)
-
     # Overriding the Broker's "handle_client" method
     async def handle_client(self, reader, writer):
         while True:
