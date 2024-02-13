@@ -109,7 +109,10 @@ class Broker:
             return STATUS.ERROR
         self._logger.info(f"Writing message {json_dict['value']} to part_no {part_no}")
         print(f"Writing message {json_dict['value']} to part_no {part_no}")
-        message = self._pqueues[part_no].write_new_message(json_dict["value"])
+        key_value_json = {}
+        key_value_json["key"] = json_dict["key"]
+        key_value_json["value"] = json_dict["value"]
+        message = self._pqueues[part_no].write_new_message(key_value_json)
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
         self.is_empty = 0  # TODO ?
@@ -186,6 +189,7 @@ class Broker:
                 await writer.drain()
             elif json_dict["type"] == "PULL":
                 message = self._pull(json_dict)
+                message = str(message)
                 response = message + "\n" if message is not None else "No message\n"
                 writer.write(response.encode())
                 await writer.drain()
