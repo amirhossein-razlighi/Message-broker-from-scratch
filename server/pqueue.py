@@ -75,6 +75,8 @@ class Pqueue:
             return []
         print(f"Replicating to {self.replica_address}")
         #TODO empty list of self.not_written
-        return self.not_written
+        not_written_copy = self.not_written.copy()
+        self.not_written = []
+        return not_written_copy
         
     
