@@ -28,6 +28,11 @@ class TestPushPull(unittest.TestCase):
         self.broker_thread = threading.Thread(target=self.broker.run, daemon=True)
         self.broker_thread.start()
         sleep(3)
+        self.broker = Broker("127.0.0.1", 8007, 8008, 8009)
+        self.broker._zookeeper["host"] = socket.gethostbyname("localhost")
+        self.broker._zookeeper["socket_port"] = 8001
+        self.broker_thread = threading.Thread(target=self.broker.run, daemon=True)
+        self.broker_thread.start()
 
     def test_push_pull(self):
         host = socket.gethostbyname("localhost")
@@ -41,7 +46,6 @@ class TestPushPull(unittest.TestCase):
                     "type": "PUSH",
                     "key": random_key,
                     "value": random_value,
-                    "part_no": "0",
                 }
                 s.sendall(json.dumps(message).encode())
                 data = s.recv(1024).decode()

@@ -26,6 +26,12 @@ class TestPush(unittest.TestCase):
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
         sleep(1)
+        broker = Broker("127.0.0.1", 8007, 8008, 8009)
+        broker._zookeeper["host"] = socket.gethostbyname("localhost")
+        broker._zookeeper["socket_port"] = 8001
+        broker_thread = threading.Thread(target=broker.run, daemon=True)
+        broker_thread.start()
+        sleep(1)
 
         host = "127.0.0.1"
         port = 8004
@@ -33,7 +39,7 @@ class TestPush(unittest.TestCase):
             s.connect((host, port))
             random_key = "wow" + str(random.randint(0, 1000))
             random_value = "bye" + str(random.randint(0, 1000))
-            message = {"type": "PUSH", "key": random_key, "value": random_value, "part_no": "0"}
+            message = {"type": "PUSH", "key": random_key, "value": random_value}
             s.sendall(json.dumps(message).encode())
             data = s.recv(1024).decode()
             data = data.strip()
