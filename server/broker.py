@@ -12,6 +12,7 @@ from pqueue import Pqueue
 import logging
 from status import STATUS, SOCKET_STATUS
 import random
+import pickle
 
 from metrics import *
 
@@ -143,36 +144,42 @@ class Broker:
     async def handle_client(self, reader, writer):
         while True:
             data = await reader.read(100)
-            message = data.decode()
+            try:
+                message = data.decode()
+            except:
+                message = pickle.loads(data)
             addr = writer.get_extra_info("peername")
             print(f"Received {message} from {addr}")
-            json_dict = self.extract_message(message)
-            if json_dict["type"] == "PUSH":
-                status = self._push(json_dict)
-                print(f"Status: {status}")
-                response = (
-                    str(SOCKET_STATUS.WRITE_SUCCESS.value)
-                    if status == STATUS.SUCCESS
-                    else str(SOCKET_STATUS.WRITE_FAILED.value)
-                )
-                writer.write((response + "\n").encode())
-                await writer.drain()
-            elif json_dict["type"] == "PULL":
-                message = self._pull(json_dict)
-                response = message + "\n" if message is not None else "No message\n"
-                writer.write(response.encode())
-                await writer.drain()
-            elif json_dict["type"] == "SUBSCRIBE":
-                status = self._subscribe(addr, json_dict["broker_id"], writer)
-                response = (
-                    str(SOCKET_STATUS.SUBSCRIBE_SUCCESS.value)
-                    if status == STATUS.SUCCESS
-                    else str(SOCKET_STATUS.SUBSCRIBE_FAILED.value)
-                )
-                print(f"Response: {response}")
-                writer.write((response + "\n").encode())
-            else:
-                break
+            try:
+                json_dict = self.extract_message(message)
+                if json_dict["type"] == "PUSH":
+                    status = self._push(json_dict)
+                    print(f"Status: {status}")
+                    response = (
+                        str(SOCKET_STATUS.WRITE_SUCCESS.value)
+                        if status == STATUS.SUCCESS
+                        else str(SOCKET_STATUS.WRITE_FAILED.value)
+                    )
+                    writer.write((response + "\n").encode())
+                    await writer.drain()
+                elif json_dict["type"] == "PULL":
+                    message = self._pull(json_dict)
+                    response = message + "\n" if message is not None else "No message\n"
+                    writer.write(response.encode())
+                    await writer.drain()
+                elif json_dict["type"] == "SUBSCRIBE":
+                    status = self._subscribe(addr, json_dict["broker_id"], writer)
+                    response = (
+                        str(SOCKET_STATUS.SUBSCRIBE_SUCCESS.value)
+                        if status == STATUS.SUCCESS
+                        else str(SOCKET_STATUS.SUBSCRIBE_FAILED.value)
+                    )
+                    print(f"Response: {response}")
+                    writer.write((response + "\n").encode())
+                else:
+                    break
+            except:
+                self._logger.error(f"Invalid message {message}")
         self._logger.info(f"Closing the connection")
         writer.close()
         await writer.wait_closed()
@@ -207,7 +214,8 @@ class Broker:
         # Create socket
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                client_socket.connect((self._zookeeper['host'], self._zookeeper['socket_port']))
+                #TODO
+                client_socket.connect(('127.0.0.1', self._zookeeper['socket_port']))
                 broker_info = f"initiate :{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
                 client_socket.sendall(broker_info.encode())
                 print("Broker initiated and connected to the leader.")
