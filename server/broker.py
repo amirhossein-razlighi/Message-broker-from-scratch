@@ -89,6 +89,7 @@ class Broker:
                     self._logger.info(
                         f"Message sent to subscriber {selected_subscriber}"
                     )
+                    await self.update_replicas()
             except:
                 continue
             await asyncio.sleep(5)
@@ -215,6 +216,7 @@ class Broker:
                 message = self._pull(json_dict)
                 message = str(message)
                 response = message + "\n" if message is not None else "No message\n"
+                await self.update_replicas()
                 writer.write(response.encode())
                 await writer.drain()
             elif json_dict["type"] == "SUBSCRIBE":
