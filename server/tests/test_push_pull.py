@@ -58,9 +58,10 @@ class TestPushPull(unittest.TestCase):
                 s.sendall(json.dumps(message).encode())
                 data = s.recv(1024).decode()
                 data = data.strip()
-                host_b, port_b = data.split(',')
+                host_b, port_b, part_no = data.split(',')
                 port_b = int(port_b)
-
+                message["part_no"] = part_no
+                
                 # Establish a new connection
                 new_client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 new_client_socket.connect((host_b, port_b))
