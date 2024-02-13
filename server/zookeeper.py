@@ -32,7 +32,7 @@ class ZooKeeper(Broker):
         self._partitions_replica = {}  # dict: partition_number -> replica broker_id
         # check if the broker_id is up (1) or down (0)
         self.is_up = {}
-        # check if the broker is empty or not
+        # check if the broker is empty or not , dict: broker_id -> is_up (1) or not(0)
         self.is_empty = {}
         self.ping_addresses = {}
         self._last_assigned_partition = 0  # Used to assign partitions to brokers
@@ -59,9 +59,46 @@ class ZooKeeper(Broker):
         self.update_broker_status(broker_id, 1)
         print(f"Broker {broker_id} started.")
 
-    def stop_broker(self, broker_id):
+    async def partitions_move(self, broker_id):
+        # make active partitions of broker_id active in it's replica
+        for part in self._partitions:
+            if self._partitions[part] == broker_id:
+                message = {
+                    "type": "PARTITION_ACTIVATE",
+                    "partition": part
+                }
+                broker_id_replica_part = self._partitions_replica[part]
+                address_replica_broker = self.addresses[broker_id_replica_part]
+                await self.send_message_to_broker(
+                    address_replica_broker[0],
+                    address_replica_broker[1],
+                    message
+                )
+                self._partitions_replica[part] = None
+                self._partitions[part] = broker_id_replica_part
+
+        # notify main partition brokers that their replica is down
+        for part in self._partitions_replica:
+            if self._partitions_replica[part] == broker_id:
+                message = {
+                    "type": "REPLICA_DOWN",
+                    "partition": part
+                }
+                broker_id_main_part = self._partitions[part]
+                address_main_broker = self.addresses[broker_id_main_part]
+                await self.send_message_to_broker(
+                    address_main_broker[0],
+                    address_main_broker[1],
+                    message
+                )
+                self._partitions_replica[part] = None
+
+
+    async def stop_broker(self, broker_id):
         self.update_broker_status(broker_id, 0)
-        # TODO remove broker from every where
+        self.is_empty.pop(broker_id)
+        await self.partitions_move(broker_id)
+        self.addresses.pop(broker_id)
         self.ping_addresses.pop(broker_id)
         self._logger.info(f"Broker {broker_id} removed.")
 
@@ -85,14 +122,24 @@ class ZooKeeper(Broker):
         else:
             return False
 
-    def health_check_thread(self):
+    async def health_check_thread(self):
         self._logger.info("health check is starting")
         self._logger.info(f"Broker list: {self.ping_addresses}")
         while True:
-            for broker_address in self.ping_addresses:
-                print("Checking broker", broker_address)
-                self.send_heartbeat(broker_address)
-            time.sleep(5)
+            for broker_id in self.ping_addresses:
+                broker_is_up = self.send_heartbeat(broker_id)
+                self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is being pinged")
+                if not broker_is_up:
+                    # try 3 more times with distance if broker is not up, call stop_broker
+                    for _ in range(3):
+                        broker_is_up = self.send_heartbeat(broker_id)
+                        time.sleep(0.2)
+                    if not broker_is_up:
+                        self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is down")
+                        await self.stop_broker(broker_id)
+                        break
+
+            time.sleep(3)
 
     def run(self, host=None, http_port=None, socket_port=None):
         if host is None:
@@ -114,7 +161,7 @@ class ZooKeeper(Broker):
         socket_thread.start()
 
         health_check_thread = threading.Thread(
-            target=self.health_check_thread, daemon=True
+            target=asyncio.run, args=(self.health_check_thread(), ), daemon=True
         )
         health_check_thread.start()
 
@@ -221,7 +268,7 @@ class ZooKeeper(Broker):
                     "replica_address": self.addresses[replica_broker_id],
                 }
                 await self.send_message_to_broker(
-                    host, int(port), pickle.dumps(message)
+                    host, int(port), message
                 )
 
                 # notify the replica broker to take the replica
@@ -229,7 +276,7 @@ class ZooKeeper(Broker):
                 await self.send_message_to_broker(
                     self.addresses[replica_broker_id][0],
                     self.addresses[replica_broker_id][1],
-                    pickle.dumps(message),
+                    message,
                 )
 
                 self._partitions[partition] = broker_id

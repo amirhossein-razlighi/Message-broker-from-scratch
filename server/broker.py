@@ -24,6 +24,7 @@ uvicorn.logging.logging.basicConfig(level=uvicorn.logging.logging.DEBUG)
 class Broker:
     def __init__(self, host, socket_port, http_port, ping_port):
         self.id = str(uuid.uuid4())
+        # dict: part_no -> Pqueue
         self._pqueues = {}
         self._app = app
         self._host = host
@@ -141,7 +142,7 @@ class Broker:
     async def send_message_to_broker(self, host_ip, port, message):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.connect((host_ip, port))
-            client_socket.sendall(message)
+            client_socket.sendall(pickle.dumps(message))
 
     async def handle_broker_message(self, reader, writer, addr, message):
         print(f"Received {message} from {addr} (Handle Broker Message)")
@@ -158,6 +159,7 @@ class Broker:
             writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
             writer.close()
             return
+
         elif message["type"] == "REPLICA_CONSISTENCY":
             part_no = message["partition"]
             queue_ = pickle.loads(message["queue"])
@@ -168,7 +170,18 @@ class Broker:
             )
             writer.close()
             return
-
+        elif message['type'] == "PARTITION_ACTIVATE":
+            part = message["partition"]
+            self._pqueues[part].become("primary")
+            self._logger.info(f"Partition {part} activated in {self.id}")
+            return
+        # if replica of the main partition which the main partition resides in this broker is down
+        elif message['type'] == "REPLICA_DOWN":
+            part = message["partition"]
+            self._pqueues[part].remove_replica()
+            self._logger.info(f"Partition {part} replica address is removed from primary broker {self.id}")
+            return
+    
     async def update_replicas(self, push=False):
         for partition_number in self._pqueues.keys():
             if not self._pqueues[partition_number].is_replica:
