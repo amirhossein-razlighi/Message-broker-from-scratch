@@ -12,6 +12,7 @@ from pqueue import Pqueue
 import logging
 from status import STATUS, SOCKET_STATUS
 import random
+import pickle
 
 from metrics import *
 
@@ -24,8 +25,6 @@ class Broker:
     def __init__(self, host, socket_port, http_port, ping_port):
         self.id = str(uuid.uuid4())
         self._pqueues = {}
-        # self._queue = queue.Queue()
-        # self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
         self._socket_port = int(socket_port)
@@ -36,25 +35,20 @@ class Broker:
             "socket_port": 8000,
             "ping_port": 7500,
         }
-        self._create_pqueue(0, False)
+        self.create_pqueue(0, False)
         self._broker_subscribers = []
         self._logger = logging.getLogger(__name__)
-        self._observers = set()
         self._is_replica = False
         self.ping_port = ping_port
         self.is_zookeeper_nominee = False
 
     def __str__(self):
-        return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica}, observers={self._observers})"
+        return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica})"
 
-    def register(self, observer):
-        self._observers.add(observer)
 
-    def unregister(self, observer):
-        self._observers.remove(observer)
 
-    def _create_pqueue(self, part_no, is_replica):
-        self._pqueues[part_no] = Pqueue(part_no, is_replica)
+    def create_pqueue(self, part_no, is_replica, replica_address = None):
+        self._pqueues[part_no] = Pqueue(part_no, is_replica, replica_address)
 
     def _read(self, part_no):
         message = self._pqueues[part_no].read()
@@ -115,20 +109,14 @@ class Broker:
             return STATUS.ERROR
         self._logger.info(f"Writing message {json_dict['value']} to part_no {part_no}")
         print(f"Writing message {json_dict['value']} to part_no {part_no}")
-        message = self._pqueues[part_no].write_new_message(json_dict["value"])
+        key_value_json = {}
+        key_value_json["key"] = json_dict["key"]
+        key_value_json["value"] = json_dict["value"]
+        message = self._pqueues[part_no].write_new_message(key_value_json)
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
         self.is_empty = 0  # TODO ?
-        # write notify for each replica
-        print(f"Broker {self.id} notifying observers...")
-        for observer in self._observers:
-            if observer.is_replica:
-                self._logger.info(f"Writing message {json_dict['value']} to replica part_no {part_no}")
-                print(f"Received PUSH message for Replica {json_dict}")
-                print(f"Writing message {json_dict['value']} to replica part_no {observer.part_no}")
-                message = self._pqueues[observer.part_no].write_new_message(json_dict["value"])
-                self._logger.info(f"Message written to part_no {observer.part_no}")
-                print(f"Message written to part_no {observer.part_no}")
+
 
         return STATUS.SUCCESS
 
@@ -139,8 +127,7 @@ class Broker:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
         except:
-
-            part_no = random.choice(list(self._pqueues.keys()))
+            part_no = 0
             self._logger.info(f"Selected part_no {part_no}")
 
         self._logger.info(f"Reading message from part_no {part_no}")
@@ -154,11 +141,39 @@ class Broker:
         asyncio.create_task(self._subscribe_checker_and_notifier(writer))
         return STATUS.SUCCESS
 
+    async def send_message_to_broker(self, host_ip, port, message):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((host_ip, port))
+            client_socket.sendall(message)
+    
+    async def handle_broker_message(self, reader, writer, addr, message):
+        if message['type'] == "ADD_PARTITION":
+            replica_address = message["replica_address"]
+            self.create_pqueue(message["partition"], False, replica_address)
+            self._logger.info(f"Partition {message['partition']} added")
+            writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
+            writer.close()
+            return
+        elif message['type'] == "ADD_REPLICA_PARTITION":
+            self.create_pqueue(message["partition"], True)
+            self._logger.info(f"Replica Partition {message['partition']} added")
+            writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
+            writer.close()
+            return
+
+
     async def handle_client(self, reader, writer):
         while True:
             data = await reader.read(100)
-            message = data.decode()
             addr = writer.get_extra_info("peername")
+            try:
+                message = data.decode()
+            except:
+                message = pickle.loads(data)
+                print(f"Received {message} from {addr}")
+                await self.handle_broker_message(reader, writer, addr, message)
+                break
+
             print(f"Received {message} from {addr}")
             json_dict = self.extract_message(message)
             if json_dict["type"] == "PUSH":
@@ -173,6 +188,7 @@ class Broker:
                 await writer.drain()
             elif json_dict["type"] == "PULL":
                 message = self._pull(json_dict)
+                message = str(message)
                 response = message + "\n" if message is not None else "No message\n"
                 writer.write(response.encode())
                 await writer.drain()
@@ -187,6 +203,7 @@ class Broker:
                 writer.write((response + "\n").encode())
             else:
                 break
+
         self._logger.info(f"Closing the connection")
         writer.close()
         await writer.wait_closed()
@@ -229,7 +246,6 @@ class Broker:
             print("Broker could not connect to the leader.")
 
     def run(self, host=None, http_port=None, socket_port=None):
-        self.initiate()
         if host is None:
             host = self._host
         if http_port is None:
@@ -247,6 +263,8 @@ class Broker:
             target=asyncio.run, args=(self.socket_thread(),)
         )
         socket_thread.start()
+
+        self.initiate()
         http_thread = threading.Thread(
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )

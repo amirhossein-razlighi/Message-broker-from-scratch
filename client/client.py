@@ -87,7 +87,7 @@ async def pull_message():
     new_client_socket.connect((host_b, port_b))
     new_client_socket.send(json.dumps(message).encode())
     new_data = new_client_socket.recv(1024).decode()
-
+    new_data = new_data.strip()
     print(f"Received from server: {repr(new_data)}")
     new_client_socket.close()
 
@@ -150,9 +150,13 @@ async def main():
     host_name = os.getenv("ZOOKEEPER")
     client_socket = open_connection(host_name, port)
 
-    await push_message("1", "a")
-    await push_message("1", "b")
-    await push_message("1", "v")
+    rand_key = random.randint(0, 100)
+    rand_value = random.randint(0, 100)
+    await push_message(f"{rand_key}", f"world {rand_value}")
+    await push_message(f"{rand_key}", f"world {rand_value + 1}")
+    await push_message(f"{rand_key}", f"world {rand_value + 2}")
+    await pull_message()
+    await pull_message()
     await pull_message()
 
     """ TEST SUBSCRIBE/PUSH/PULL
