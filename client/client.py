@@ -144,7 +144,7 @@ async def main():
     #     print("No master found")
     #     return
 
-    host_name = os.getenv("ZOOKEEPER")
+    host_name = "localhost" #os.getenv("ZOOKEEPER")
     client_socket = open_connection(host_name, port)
 
     rand_key = random.randint(0, 100)

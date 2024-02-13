@@ -30,8 +30,8 @@ class Broker:
         self._socket_port = int(socket_port)
         self._http_port = http_port
         self._zookeeper = {
-            "host": os.getenv("ZOOKEEPER"),
-            # "host": "localhost",
+            # "host": os.getenv("ZOOKEEPER"),
+            "host": "localhost",
             "http_port": 8888,
             "socket_port": 8000,
             "ping_port": 7500,
@@ -67,7 +67,9 @@ class Broker:
         while True:
             try:
                 if not len(self._broker_subscribers) == 0:
-                    selected_subscriber = random.choice(list(self._broker_subscribers.keys()))
+                    selected_subscriber = random.choice(
+                        list(self._broker_subscribers.keys())
+                    )
                     message = self._read(self._broker_subscribers[selected_subscriber])
                     if message is None:
                         await asyncio.sleep(5)
@@ -129,7 +131,9 @@ class Broker:
         self._logger.info(
             f"Subscriber {subscriber} subscribed to broker {(subscriber['host'], subscriber['socket_port'])}"
         )
-        self._broker_subscribers[(subscriber['host'], subscriber['socket_port'])] = int(part_no)
+        self._broker_subscribers[(subscriber["host"], subscriber["socket_port"])] = int(
+            part_no
+        )
         asyncio.create_task(self._subscribe_checker_and_notifier(writer))
         return STATUS.SUCCESS
 
@@ -152,6 +156,31 @@ class Broker:
             writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
             writer.close()
             return
+        elif message["type"] == "REPLICA_CONSISTENCY":
+            self._logger.info("Updating Replica and keeping consistency")
+            queue_ = pickle.loads(message["queue"])
+            self._pqueues[message["partition"]].queue = queue_
+            writer.write((str(SOCKET_STATUS.REPLICA_CONSISTENCY_SUCCESS.value) + "\n").encode())
+            writer.close()
+            print(f"new queue: {self._pqueues[message['partition']].queue}")
+            return
+
+    async def update_replicas(self):
+        for partition_number in self._pqueues.keys():
+            print(f"PPPartition number: {partition_number}")
+            if self._pqueues[partition_number].is_replica:
+                print("INSIDE")
+                message = {
+                    "type": "REPLICA_CONSISTENCY",
+                    "partition": partition_number,
+                    "queue": self._pqueues[partition_number].queue,
+                }
+                message = pickle.dumps(message)
+                self._logger.info(f"Sending message to replica {self._replica_address}")
+                await self.send_message_to_broker(
+                    self._replica_address[0], self._replica_address[1], message
+                )
+                break
 
     async def handle_client(self, reader, writer):
         while True:
@@ -175,6 +204,7 @@ class Broker:
                     if status == STATUS.SUCCESS
                     else str(SOCKET_STATUS.WRITE_FAILED.value)
                 )
+                await self.update_replicas()
                 writer.write((response + "\n").encode())
                 await writer.drain()
             elif json_dict["type"] == "PULL":
