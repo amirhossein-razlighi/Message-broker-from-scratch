@@ -49,8 +49,8 @@ class Broker:
 
 
 
-    def create_pqueue(self, part_no, is_replica):
-        self._pqueues[part_no] = Pqueue(part_no, is_replica)
+    def create_pqueue(self, part_no, is_replica, replica_address = None):
+        self._pqueues[part_no] = Pqueue(part_no, is_replica, replica_address)
 
     def _read(self, part_no):
         message = self._pqueues[part_no].read()
@@ -166,7 +166,7 @@ class Broker:
             except:
                 message = pickle.loads(data)
                 print(f"Received {message} from {addr}")
-                self.handle_broker_message(reader, writer, addr, message)
+                await self.handle_broker_message(reader, writer, addr, message)
                 break
 
             print(f"Received {message} from {addr}")
@@ -240,7 +240,6 @@ class Broker:
             print("Broker could not connect to the leader.")
 
     def run(self, host=None, http_port=None, socket_port=None):
-        self.initiate()
         if host is None:
             host = self._host
         if http_port is None:
@@ -258,6 +257,8 @@ class Broker:
             target=asyncio.run, args=(self.socket_thread(),)
         )
         socket_thread.start()
+
+        self.initiate()
         http_thread = threading.Thread(
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
         )

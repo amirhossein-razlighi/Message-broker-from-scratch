@@ -254,7 +254,7 @@ class ZooKeeper(Broker):
                 return broker_id
         return None
 
-    def send_message_to_broker(self, host_ip, port, message):
+    async def send_message_to_broker(self, host_ip, port, message):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.connect((host_ip, port))
             client_socket.sendall(message)
@@ -282,7 +282,6 @@ class ZooKeeper(Broker):
                 broker_id = idf
                 partition = self._last_assigned_partition
                 self._last_assigned_partition += 1
-                self._partitions[partition] = broker_id
 
                 # kiosk
                 # self._broker_list.append((partition, broker_id))
@@ -293,7 +292,6 @@ class ZooKeeper(Broker):
                 # choose a broker to take the replica of the partition
                 replica_broker_id = None
                 if len(self.addresses) == 1:  # the first partition is redundant and would not exist
-                    self._partitions.pop(partition)
                     continue
 
                 self._logger.info(
@@ -313,15 +311,18 @@ class ZooKeeper(Broker):
                     "partition": partition,
                     "replica_address": self.addresses[replica_broker_id],
                 }
-                self.send_message_to_broker(host, int(port), pickle.dumps(message))
+                await self.send_message_to_broker(host, int(port), pickle.dumps(message))
 
                 # notify the replica broker to take the replica
                 message = {
                     "type": "ADD_REPLICA_PARTITION",
                     "partition": partition
                 }
-                self.send_message_to_broker(self.addresses[replica_broker_id][0], self.addresses[replica_broker_id][1],
+                await self.send_message_to_broker(self.addresses[replica_broker_id][0], self.addresses[replica_broker_id][1],
                                             pickle.dumps(message))
+                
+                self._partitions[partition] = broker_id
+                self._partitions_replica[partition] = replica_broker_id
 
                 # if partition not in self._partitions_broker:
                 #     self._partitions_broker[partition] = []
