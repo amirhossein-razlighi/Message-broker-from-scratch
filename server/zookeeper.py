@@ -89,10 +89,20 @@ class ZooKeeper(Broker):
         self._logger.info("health check is starting")
         self._logger.info(f"Broker list: {self.ping_addresses}")
         while True:
-            for broker_address in self.ping_addresses:
-                print("Checking broker", broker_address)
-                self.send_heartbeat(broker_address)
-            time.sleep(5)
+            self._logger.info("pinging")
+            for broker_id in self.ping_addresses:
+                broker_is_up = self.send_heartbeat(broker_id)
+                # self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is being pinged")
+                if not broker_is_up:
+                    # try 3 more times with distance if broker is not up, call stop_broker
+                    for _ in range(3):
+                        broker_is_up = self.send_heartbeat(broker_id)
+                        time.sleep(0.2)
+                    if not broker_is_up:
+                        self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is down")
+                        self.stop_broker(broker_id)
+
+            time.sleep(3)
 
     def run(self, host=None, http_port=None, socket_port=None):
         if host is None:
