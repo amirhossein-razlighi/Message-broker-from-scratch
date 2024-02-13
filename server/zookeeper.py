@@ -28,18 +28,17 @@ from metrics import *
 class ZooKeeper(Broker):
     def __init__(self, host, socket_port, http_port, ping_port):
         super().__init__(host, socket_port, http_port, ping_port)
-        self.is_master = False # check if the current zookeeper is master zookeeper
-        self.addresses = {} # dictionary of brokers_id to the tuple of (broker_host_ip, broker_socket_port)
-        self._partitions = {} # dict: partition_number -> active broker_id
-        self._partitions_replica = {} # dict: partition_number -> replica broker_id
+        self.is_master = False  # check if the current zookeeper is master zookeeper
+        self.addresses = {}  # dictionary of brokers_id to the tuple of (broker_host_ip, broker_socket_port)
+        self._partitions = {}  # dict: partition_number -> active broker_id
+        self._partitions_replica = {}  # dict: partition_number -> replica broker_id
         # check if the broker_id is up (1) or down (0)
         self.is_up = {}
         # check if the broker is empty or not
         self.is_empty = {}
         self.ping_addresses = {}
         # self._partitions_broker={}  # dict: partition_number -> Broker broker_id
-        self._last_assigned_partition = 0 # Used to assign partitions to brokers
-
+        self._last_assigned_partition = 0  # Used to assign partitions to brokers
 
         # self._broker_list = [] # (partition_id, broker_id)
         # self._broker_partitions = {}
@@ -94,7 +93,7 @@ class ZooKeeper(Broker):
             print(f"Error: Broker {broker_id} not found.")
 
     def hash_function(self, key):
-        return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (len(self._brokers)+1)
+        return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (len(self._brokers) + 1)
 
     def get_active_brokers(self):
         active_brokers = [broker_id for broker_id, data in self.is_up.items() if data == 1]
@@ -247,20 +246,23 @@ class ZooKeeper(Broker):
                 return STATUS.SUCCESS
             else:
                 return STATUS.ERROR
+
     def _get_next_broker(self, current_broker_id):
         # Get the next broker in the list that is not the current broker
         for broker_id in self._brokers:
             if broker_id != current_broker_id:
                 return broker_id
         return None
-    
+
     def send_message_to_broker(self, host_ip, port, message):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((host_ip, port))
-            s.sendall(message)
-            data = s.recv(1024)
-            print("Received", repr(data))
-            return data
+        host_ip = host_ip
+        port_cnn = port
+        s = socket.socket()
+        s.connect((host_ip, port_cnn))
+        s.connect((host_ip, port))
+        s.sendall(message)
+        data = s.recv(1024)
+        return data
 
     # Overriding the Broker's "handle_client" method
     async def handle_client(self, reader, writer):
@@ -287,19 +289,15 @@ class ZooKeeper(Broker):
                 self._last_assigned_partition += 1
                 self._partitions[partition] = broker_id
 
-
-
                 # kiosk
                 # self._broker_list.append((partition, broker_id))
                 # self._brokers[broker_id] = Broker(host, 8000, 8888, ping_port)
 
                 # self._broker_list.sort()
 
-
-                
                 # choose a broker to take the replica of the partition
                 replica_broker_id = None
-                if len(self.addresses) == 1: # the first partition is redundant and would not exist
+                if len(self.addresses) == 1:  # the first partition is redundant and would not exist
                     self._partitions.pop(partition)
                     continue
 
@@ -309,7 +307,8 @@ class ZooKeeper(Broker):
                 if len(self.addresses) > 1:
                     replica_broker_id = random.choice(list(self.addresses.keys()))
                     self._partitions_replica[partition] = replica_broker_id
-                    self._logger.info(f"partition {partition} replica is in broker {replica_broker_id} and main broker is {broker_id}")
+                    self._logger.info(
+                        f"partition {partition} replica is in broker {replica_broker_id} and main broker is {broker_id}")
                 else:
                     writer.write("No other broker to take the replica".encode())
 
@@ -326,9 +325,8 @@ class ZooKeeper(Broker):
                     "type": "ADD_REPLICA_PARTITION",
                     "partition": partition
                 }
-                self.send_message_to_broker(self.addresses[replica_broker_id][0], self.addresses[replica_broker_id][1], pickle.dumps(message))
-
-
+                self.send_message_to_broker(self.addresses[replica_broker_id][0], self.addresses[replica_broker_id][1],
+                                            pickle.dumps(message))
 
                 # if partition not in self._partitions_broker:
                 #     self._partitions_broker[partition] = []

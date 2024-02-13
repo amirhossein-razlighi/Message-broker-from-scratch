@@ -146,13 +146,13 @@ class Broker:
             replica_address = message["replica_address"]
             self.create_pqueue(message["partition"], False, replica_address)
             self._logger.info(f"Partition {message['partition']} added")
-            writer.write((str(SOCKET_STATUS.WRITE_SUCCESS.value) + "\n").encode())
+            writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
             writer.close()
             return
         elif message['type'] == "ADD_REPLICA_PARTITION":
             self.create_pqueue(message["partition"], True)
             self._logger.info(f"Replica Partition {message['partition']} added")
-            writer.write((str(SOCKET_STATUS.WRITE_SUCCESS.value) + "\n").encode())
+            writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
             writer.close()
             return
 
