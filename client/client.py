@@ -82,7 +82,7 @@ async def pull_message():
     new_client_socket.connect((host_b, port_b))
     new_client_socket.send(json.dumps(message).encode())
     new_data = new_client_socket.recv(1024).decode()
-
+    new_data = new_data.strip()
     print(f"Received from server: {repr(new_data)}")
     new_client_socket.close()
 
@@ -147,6 +147,8 @@ async def main():
     await push_message("1", "a")
     await push_message("1", "b")
     await push_message("1", "v")
+    await pull_message()
+    await pull_message()
     await pull_message()
 
     """ TEST SUBSCRIBE/PUSH/PULL
