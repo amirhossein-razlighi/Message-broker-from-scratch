@@ -127,8 +127,7 @@ class Broker:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
         except:
-
-            part_no = random.choice(list(self._pqueues.keys()))
+            part_no = 0
             self._logger.info(f"Selected part_no {part_no}")
 
         self._logger.info(f"Reading message from part_no {part_no}")
