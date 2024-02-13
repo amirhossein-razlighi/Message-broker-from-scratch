@@ -25,7 +25,9 @@ class ZooKeeper(Broker):
     def __init__(self, host, socket_port, http_port, ping_port):
         super().__init__(host, socket_port, http_port, ping_port)
         self.is_master = False  # check if the current zookeeper is master zookeeper
-        self.addresses = {}  # dictionary of brokers_id to the tuple of (broker_host_ip, broker_socket_port)
+        self.addresses = (
+            {}
+        )  # dictionary of brokers_id to the tuple of (broker_host_ip, broker_socket_port)
         self._partitions = {}  # dict: partition_number -> active broker_id
         self._partitions_replica = {}  # dict: partition_number -> replica broker_id
         # check if the broker_id is up (1) or down (0)
@@ -38,7 +40,6 @@ class ZooKeeper(Broker):
         self._global_subscribers = []
         self.is_zookeeper_nominee = True
 
-
     def remove_broker(self, broker):
         pass
 
@@ -49,7 +50,9 @@ class ZooKeeper(Broker):
             print(f"Error: Broker {broker_id} not found.")
 
     def get_active_brokers(self):
-        active_brokers = [broker_id for broker_id, data in self.is_up.items() if data == 1]
+        active_brokers = [
+            broker_id for broker_id, data in self.is_up.items() if data == 1
+        ]
         return active_brokers
 
     def start_broker(self, broker_id):
@@ -62,18 +65,16 @@ class ZooKeeper(Broker):
         self.ping_addresses.pop(broker_id)
         self._logger.info(f"Broker {broker_id} removed.")
 
-    def consume(self, command='pull'):
-        if command == 'sub':
-            items = list(self.is_up.items())
+    def consume(self, command="pull"):
+        if command == "sub":
+            items = list(self._partitions.items())
             random.shuffle(items)
-            for broker_id, is_active in items:
-                if is_active == 1:
-                    return broker_id
+            for partition_number, broker_id in items:
+                if self.is_empty[broker_id] == 0:
+                    return broker_id, partition_number
         else:
-
-            for broker_id in self.is_up:
-                if self.is_empty[broker_id] == 0 and self.is_up[broker_id] == 1:
-                    return broker_id
+            partition_number = random.choice(list(self._partitions.keys()))
+            return self._partitions[partition_number], partition_number
         return None
 
     def send_heartbeat(self, broker_id):
@@ -112,7 +113,9 @@ class ZooKeeper(Broker):
         )
         socket_thread.start()
 
-        health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
+        health_check_thread = threading.Thread(
+            target=self.health_check_thread, daemon=True
+        )
         health_check_thread.start()
 
         http_thread = threading.Thread(
@@ -120,24 +123,24 @@ class ZooKeeper(Broker):
         )
         http_thread.start()
 
-        health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
+        health_check_thread = threading.Thread(
+            target=self.health_check_thread, daemon=True
+        )
         health_check_thread.start()
 
     def hash_message_key(self, message_key):
         hasher = hashlib.sha256()
-        hasher.update(message_key.encode('utf-8'))
-        hashed_value = int.from_bytes(hasher.digest(), byteorder='big')
-        num_active = 0
-        active_brokers = []
-        for broker_id, state in self.is_up.items():
-            if state == 1:
-                active_brokers.append(broker_id)
-        partition_index = hashed_value % len(active_brokers)
-        res = active_brokers[partition_index]
-        return res
+        hasher.update(message_key.encode("utf-8"))
+        hashed_value = int.from_bytes(hasher.digest(), byteorder="big")
+        part_no = hashed_value % len(self._partitions) + 1
+        return part_no
 
     def _push(self, json_dict):
-        broker_id = self.hash_message_key(json_dict["key"])
+        part_no = self.hash_message_key(json_dict["key"])
+        json_dict["part_no"] = part_no
+        print(f"Partition number: {part_no}")
+        print(self._partitions)
+        broker_id = self._partitions[part_no]
         status = self._push_pull_broker(broker_id, json_dict)
         print(f"STATUS in push: {status}")
         if status == STATUS.SUCCESS:
@@ -169,9 +172,10 @@ class ZooKeeper(Broker):
         while True:
             data = await reader.read(100)
             message = data.decode()
-            host = writer.get_extra_info('peername')[0]
-            port = writer.get_extra_info('peername')[1]
+            host = writer.get_extra_info("peername")[0]
+            port = writer.get_extra_info("peername")[1]
             print(f"Received {message} from {(host, port)}")
+            print(message)
             if message.startswith("initiate"):
                 a, b, port, ping_port, idf = message.split(":")
                 port = int(port)
@@ -190,7 +194,9 @@ class ZooKeeper(Broker):
 
                 # choose a broker to take the replica of the partition
                 replica_broker_id = None
-                if len(self.addresses) == 1:  # the first partition is redundant and would not exist
+                if (
+                    len(self.addresses) == 1
+                ):  # the first partition is redundant and would not exist
                     continue
 
                 self._logger.info(
@@ -198,10 +204,13 @@ class ZooKeeper(Broker):
                 )
 
                 if len(self.addresses) > 1:
-                    replica_broker_id = random.choice(list(self.addresses.keys()))
+                    lst = list(self.addresses.keys())
+                    lst.remove(broker_id)
+                    replica_broker_id = random.choice(lst)
                     self._partitions_replica[partition] = replica_broker_id
                     self._logger.info(
-                        f"partition {partition} replica is in broker {replica_broker_id} and main broker is {broker_id}")
+                        f"partition {partition} replica is in broker {replica_broker_id} and main broker is {broker_id}"
+                    )
                 else:
                     writer.write("No other broker to take the replica".encode())
 
@@ -211,19 +220,20 @@ class ZooKeeper(Broker):
                     "partition": partition,
                     "replica_address": self.addresses[replica_broker_id],
                 }
-                await self.send_message_to_broker(host, int(port), pickle.dumps(message))
+                await self.send_message_to_broker(
+                    host, int(port), pickle.dumps(message)
+                )
 
                 # notify the replica broker to take the replica
-                message = {
-                    "type": "ADD_REPLICA_PARTITION",
-                    "partition": partition
-                }
-                await self.send_message_to_broker(self.addresses[replica_broker_id][0], self.addresses[replica_broker_id][1],
-                                            pickle.dumps(message))
-                
+                message = {"type": "ADD_REPLICA_PARTITION", "partition": partition}
+                await self.send_message_to_broker(
+                    self.addresses[replica_broker_id][0],
+                    self.addresses[replica_broker_id][1],
+                    pickle.dumps(message),
+                )
+
                 self._partitions[partition] = broker_id
                 self._partitions_replica[partition] = replica_broker_id
-
 
             else:
                 addr = writer.get_extra_info("peername")
@@ -232,7 +242,6 @@ class ZooKeeper(Broker):
                 json_dict = self.extract_message(message)
                 if json_dict["type"] == "PUSH":
                     status = self._push(json_dict)
-                    status = STATUS.SUCCESS
                     print(f"Status: {status}")
                     if status == STATUS.SUCCESS:
                         response = str(SOCKET_STATUS.WRITE_SUCCESS.value)
@@ -242,20 +251,27 @@ class ZooKeeper(Broker):
                     print(f"Sent {SOCKET_STATUS.WRITE_SUCCESS.value}")
                     await writer.drain()
                 elif json_dict["type"] == "PULL":
-                    broker_id = self.consume()
+                    broker_id, partition_number = self.consume()
+                    print(f"Broker id: {broker_id}, Partition number: {partition_number}")
                     if broker_id is not None:
-                        writer.write(','.join(str(x) for x in self.addresses[broker_id]).encode())
+                        response = ",".join(str(x) for x in self.addresses[broker_id])
+                        response += "," + str(partition_number)
+                        writer.write(response.encode())
                     else:
-                        writer.write('Brokers are empty'.encode())
+                        writer.write("Brokers are empty".encode())
                     await writer.drain()
 
                 elif json_dict["type"] == "SUBSCRIBE":
-                    broker_id = self.consume('sub')
+                    broker_id, partition_number = self.consume("sub")
                     if broker_id is not None:
-                        text = ','.join(str(x) for x in self.addresses[broker_id]) + ',' + broker_id
+                        text = (
+                            ",".join(str(x) for x in self.addresses[broker_id])
+                            + ","
+                            + partition_number
+                        )
                         writer.write(text.encode())
                     else:
-                        writer.write('There is not broker'.encode())
+                        writer.write("There is not broker".encode())
                     await writer.drain()
                 else:
                     break

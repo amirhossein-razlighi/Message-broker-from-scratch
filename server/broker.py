@@ -30,13 +30,13 @@ class Broker:
         self._socket_port = int(socket_port)
         self._http_port = http_port
         self._zookeeper = {
-            "host": os.getenv('ZOOKEEPER'),
+            "host": os.getenv("ZOOKEEPER"),
+            # "host": "localhost",
             "http_port": 8888,
             "socket_port": 8000,
             "ping_port": 7500,
         }
-        self.create_pqueue(0, False)
-        self._broker_subscribers = []
+        self._broker_subscribers = {}
         self._logger = logging.getLogger(__name__)
         self._is_replica = False
         self.ping_port = ping_port
@@ -45,9 +45,7 @@ class Broker:
     def __str__(self):
         return f"Broker(id={self.id}, pqueues={self._pqueues}, is_replica={self._is_replica})"
 
-
-
-    def create_pqueue(self, part_no, is_replica, replica_address = None):
+    def create_pqueue(self, part_no, is_replica, replica_address=None):
         self._pqueues[part_no] = Pqueue(part_no, is_replica, replica_address)
 
     def _read(self, part_no):
@@ -60,15 +58,7 @@ class Broker:
 
     def extract_message(self, message):
         try:
-            statements = message.split(",")
-            json_dict = {}
-            print(statements)
-            for statement in statements:
-                key, value = statement.split(":")
-                key = key.split('"')[1]
-                value = value.split('"')[1]
-                # print(key, value)
-                json_dict[key] = value
+            json_dict = json.loads(message)
         except:
             json_dict = {"type": "Invalid"}
         return json_dict
@@ -76,13 +66,15 @@ class Broker:
     async def _subscribe_checker_and_notifier(self, writer):
         while True:
             try:
-                if not len(self._broker_subscribers) == 0 and (
-                        (message := self._read(0)) is not None
-                ):
+                if not len(self._broker_subscribers) == 0:
+                    selected_subscriber = random.choice(self._broker_subscribers.keys())
+                    message = self._read(self._broker_subscribers[selected_subscriber])
+                    if message is None:
+                        await asyncio.sleep(5)
+                        continue
                     if message == "No message":
                         await asyncio.sleep(5)
                         continue
-                    selected_subscriber = random.choice(self._broker_subscribers)
                     self._logger.info(f"Selected subscriber {selected_subscriber}")
                     self._logger.info(
                         f"Sending message {message} to subscriber {selected_subscriber}"
@@ -117,7 +109,6 @@ class Broker:
         print(f"Message written to part_no {part_no}")
         self.is_empty = 0  # TODO ?
 
-
         return STATUS.SUCCESS
 
     def _pull(self, json_dict):
@@ -127,17 +118,18 @@ class Broker:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
         except:
-            part_no = 0
             self._logger.info(f"Selected part_no {part_no}")
 
         self._logger.info(f"Reading message from part_no {part_no}")
         return self._read(part_no)
 
-    def _subscribe(self, subscriber, broker_id, writer):
+    def _subscribe(self, subscriber, broker_id=None, writer=None, part_no=None):
         subscriber = {"host": subscriber[0], "socket_port": subscriber[1]}
         self._logger.info(f"Received SUBSCRIBE message from {subscriber}")
-        self._logger.info(f"Subscriber {subscriber} subscribed to broker {broker_id}")
-        self._broker_subscribers.append(subscriber)
+        self._logger.info(
+            f"Subscriber {subscriber} subscribed to broker {(subscriber[0], subscriber[1])}"
+        )
+        self._broker_subscribers[(subscriber[0], subscriber[1])] = part_no
         asyncio.create_task(self._subscribe_checker_and_notifier(writer))
         return STATUS.SUCCESS
 
@@ -145,22 +137,21 @@ class Broker:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.connect((host_ip, port))
             client_socket.sendall(message)
-    
+
     async def handle_broker_message(self, reader, writer, addr, message):
-        if message['type'] == "ADD_PARTITION":
+        if message["type"] == "ADD_PARTITION":
             replica_address = message["replica_address"]
             self.create_pqueue(message["partition"], False, replica_address)
             self._logger.info(f"Partition {message['partition']} added")
             writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
             writer.close()
             return
-        elif message['type'] == "ADD_REPLICA_PARTITION":
+        elif message["type"] == "ADD_REPLICA_PARTITION":
             self.create_pqueue(message["partition"], True)
             self._logger.info(f"Replica Partition {message['partition']} added")
             writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
             writer.close()
             return
-
 
     async def handle_client(self, reader, writer):
         while True:
@@ -193,7 +184,7 @@ class Broker:
                 writer.write(response.encode())
                 await writer.drain()
             elif json_dict["type"] == "SUBSCRIBE":
-                status = self._subscribe(addr, json_dict["broker_id"], writer)
+                status = self._subscribe(addr, None, writer, json_dict["part_no"])
                 response = (
                     str(SOCKET_STATUS.SUBSCRIBE_SUCCESS.value)
                     if status == STATUS.SUCCESS
@@ -221,7 +212,9 @@ class Broker:
         registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(registry)
         data = generate_latest(registry)
-        return fastapi.Response(content=data, media_type=CONTENT_TYPE_LATEST, status_code=200)
+        return fastapi.Response(
+            content=data, media_type=CONTENT_TYPE_LATEST, status_code=200
+        )
 
     async def socket_thread(self):
         server = await asyncio.start_server(
@@ -238,7 +231,9 @@ class Broker:
         # Create socket
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                client_socket.connect((self._zookeeper['host'], self._zookeeper['socket_port']))
+                client_socket.connect(
+                    (self._zookeeper["host"], self._zookeeper["socket_port"])
+                )
                 broker_info = f"initiate :{self._host}:{self._socket_port}:{self.ping_port}:{self.id}"
                 client_socket.sendall(broker_info.encode())
                 print("Broker initiated and connected to the leader.")
