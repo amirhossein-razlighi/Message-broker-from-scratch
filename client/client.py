@@ -100,7 +100,6 @@ async def subscribe(f: Callable):
 
     message_0 = {
         "type": "SUBSCRIBE",
-        # "broker_id": "0"
     }
 
     client_socket.send(json.dumps(message_0).encode())
@@ -132,8 +131,9 @@ def receive_message(f=None):
             data = client_subscribe_socket.recv(1024).decode()
             if not repr(data).startswith('No message'):
                 if f:
-                    data = f(repr(data).strip)
-            print(f"Received from server: {repr(data)}")
+                    data = f(repr(data).strip())
+            data = str(data)
+            print(f"Received from server: {data}")
         except:
             continue
 
@@ -155,7 +155,7 @@ async def main():
     await push_message(f"{rand_key}", f"world {rand_value}")
     await push_message(f"{rand_key}", f"world {rand_value + 1}")
     await push_message(f"{rand_key}", f"world {rand_value + 2}")
-    await pull_message()
+    await subscribe(None)
     await pull_message()
     await pull_message()
 

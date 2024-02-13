@@ -88,7 +88,7 @@ class Broker:
                         f"Sending message {message} to subscriber {selected_subscriber}"
                     )
                     print(f"Sending message to subscriber {selected_subscriber}")
-                    response = message + "\n"
+                    response = str(message) + "\n"
                     await asyncio.wait_for(writer.write(response.encode()), timeout=5)
                     # await writer.drain()
                     print(f"Message sent to subscriber {selected_subscriber}")
