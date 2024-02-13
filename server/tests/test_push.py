@@ -16,6 +16,7 @@ from zookeeper import ZooKeeper
 
 client_socket = None
 
+
 async def push_message(key: str, value: str):
     if client_socket is None:
         # TODO return error
@@ -26,25 +27,28 @@ async def push_message(key: str, value: str):
     data = client_socket.recv(1024).decode()
     assert data == str(status.SOCKET_STATUS.WRITE_SUCCESS.value)
 
+
 class TestPush(unittest.TestCase):
-    def test_push(self):
+    def __init__(self, *args, **kwargs):
+        super(TestPush, self).__init__(*args, **kwargs)
         zookeeper = ZooKeeper("127.0.0.1", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
         zookeeper_thread.start()
-        sleep(1)
+        sleep(5)
         broker = Broker("127.0.0.1", 8004, 8005, 8006)
         broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
-        sleep(1)
+        sleep(5)
         broker = Broker("127.0.0.1", 8007, 8008, 8009)
         broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
-        sleep(1)
+        sleep(5)
 
+    def test_push(self):
         host = "localhost"
         port = 8001
         global client_socket
