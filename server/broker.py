@@ -137,7 +137,7 @@ class Broker:
     async def send_message_to_broker(self, host_ip, port, message):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.connect((host_ip, port))
-            client_socket.sendall(message)
+            client_socket.sendall(pickle.dumps(message))
 
     async def handle_broker_message(self, reader, writer, addr, message):
         if message["type"] == "ADD_PARTITION":
