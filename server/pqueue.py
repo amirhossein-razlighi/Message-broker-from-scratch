@@ -55,6 +55,13 @@ class Pqueue:
                 # Error
                 return "already primary"
             self.is_replica = False
+            self.replica_address = None
+    
+    def remove_replica(self):
+        if self.is_replica:
+            # Error
+            return "already replica"
+        self.replica_address = None
 
     def write(self, message):
         self.queue.append(message)
@@ -75,6 +82,8 @@ class Pqueue:
             return []
         print(f"Replicating to {self.replica_address}")
         #TODO empty list of self.not_written
-        return self.not_written
+        not_written_copy = self.not_written.copy()
+        self.not_written = []
+        return not_written_copy
         
     
