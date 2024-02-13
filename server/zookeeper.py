@@ -272,7 +272,9 @@ class ZooKeeper(Broker):
             print(f"Received {message} from {(host, port)}")
             if message.startswith("initiate"):
                 a, b, port, ping_port, idf = message.split(":")
+                port = int(port)
                 host = socket.gethostbyname(host)
+                self._logger.info(f"host is {host}")
                 self.addresses[idf] = (host, int(port))
                 self.ping_addresses[idf] = (host, int(ping_port))
 
@@ -321,7 +323,7 @@ class ZooKeeper(Broker):
 
                 # notify the replica broker to take the replica
                 message = {
-                    "type": "ADD_REPLICA",
+                    "type": "ADD_REPLICA_PARTITION",
                     "partition": partition
                 }
                 self.send_message_to_broker(self.addresses[replica_broker_id][0], self.addresses[replica_broker_id][1], pickle.dumps(message))
@@ -360,7 +362,7 @@ class ZooKeeper(Broker):
                 #     other_Broker._create_pqueue(first_partition,is_replica=True)
                 #     print("Replica Created successfully")
                 #     print("Replica Created successfully")
-                
+
             else:
                 addr = writer.get_extra_info("peername")
                 print(f"Received {message} from {addr}")

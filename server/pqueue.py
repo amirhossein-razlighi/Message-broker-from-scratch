@@ -7,10 +7,12 @@ it keeps a record of messages and other probable things
 
 
 class Pqueue:
-    def __init__(self, part_no, is_replica) -> None:
+    def __init__(self, part_no, is_replica, replica_address = None) -> None:
         self.part_no = part_no
         self.is_replica = is_replica
         self.queue = []
+        self.replica_address = replica_address
+        self.not_written = []
 
     def __str__(self):
         return f"Pqueue(part_no={self.part_no}, is_replica={self.is_replica}, queue={self.queue})"
@@ -25,13 +27,13 @@ class Pqueue:
                 # Error
                 return None
 
-            message = self.queue.pop()  # Get the last message and remove it
+            message = self.queue.pop(0)  # Get the last message and remove it
             print(f"Reading message: {message}")
             return message
 
     def mark_as_read(self):
         if self.is_eligible_to_read() and len(self.queue) > 0:
-            self.queue.pop()  # Remove the last message
+            self.queue.pop(0)  # Remove the last message
             print(f"Marked last message as read")
 
     def write_new_message(self, message):
@@ -56,12 +58,23 @@ class Pqueue:
 
     def write(self, message):
         self.queue.append(message)
+        self.not_written.append(message)
         return 1
 
-    def replicate(self, arr_message):
+    def write_to_my_replica(self, arr_message):
         if self.is_replica:
             self.queue = self.queue + arr_message
             return 1
 
         # not a replica
         return 0
+    
+    def replicate(self):
+        if self.is_replica:
+            # Error
+            return []
+        print(f"Replicating to {self.replica_address}")
+        #TODO empty list of self.not_written
+        return self.not_written
+        
+    
