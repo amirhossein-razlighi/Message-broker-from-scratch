@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os, sys
 
@@ -11,7 +10,6 @@ import hashlib
 import pickle
 import random
 import socket
-import time
 import threading
 import argparse
 import fastapi
@@ -19,8 +17,6 @@ import uvicorn
 
 from broker import Broker
 import asyncio
-
-from pqueue import Pqueue
 
 from metrics import *
 
@@ -37,63 +33,20 @@ class ZooKeeper(Broker):
         # check if the broker is empty or not
         self.is_empty = {}
         self.ping_addresses = {}
-        # self._partitions_broker={}  # dict: partition_number -> Broker broker_id
         self._last_assigned_partition = 0  # Used to assign partitions to brokers
-
-        # self._broker_list = [] # (partition_id, broker_id)
-        # self._broker_partitions = {}
-        # self._brokers = {}  # New dictionary to map broker_id to broker
-        # self._current_broker_index = 0  # Used for round-robin
 
         self._global_subscribers = []
         self.is_zookeeper_nominee = True
 
-        # self.first_replica = []
-
-    # async def handle_broker(self, reader, writer):
-    #     # Receive broker's information
-    #     broker_info = (await reader.read(1024)).decode()
-    #     host, port, ping_port, idf = broker_info.split(":")
-    #     self.addresses[idf]=(host, int(port))
-    #     self.addresses[idf]=(host, int(ping_port))
-    #     print(f"Broker at {host}:{port} added to the network.")
-    #     writer.close()
-    #
-    # async def start(self):
-    #     # Create server
-    #     server = await asyncio.start_server(
-    #         self.handle_broker, self.host, self.port
-    #     )
-    #
-    #     # Print server information
-    #     addr = server.sockets[0].getsockname()
-    #     print(f"Leader Broker listening on {addr}")
-    #
-    #     # Serve requests until interrupted
-    #     async with server:
-    #         await server.serve_forever()
 
     def remove_broker(self, broker):
-        self._broker_list.remove(broker)
-
-        # changes
-        if broker.id in self._brokers:
-            self._brokers.pop(broker.id)
-            print(f"Broker {broker.id} removed.")
-        else:
-            print(f"Error: Broker {broker.id} not found.")
-
-    def get_broker(self):
-        return self._broker_list[0]
+        pass
 
     def update_broker_status(self, broker_id, status):
         if broker_id in self.is_up:
             self.is_up[broker_id] = status
         else:
             print(f"Error: Broker {broker_id} not found.")
-
-    def hash_function(self, key):
-        return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (len(self._brokers) + 1)
 
     def get_active_brokers(self):
         active_brokers = [broker_id for broker_id, data in self.is_up.items() if data == 1]
@@ -171,41 +124,6 @@ class ZooKeeper(Broker):
         health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
         health_check_thread.start()
 
-    def choose_broker_for_subscription(self, subscriber):
-        broker = self._broker_list[self._current_broker_index][1]
-        broker_id = broker.id
-        self._current_broker_index = (self._current_broker_index + 1) % len(
-            self._broker_list
-        )
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((broker.host, broker.socket_port))
-            s.sendall(
-                json.dumps(
-                    {
-                        "type": "SUBSCRIBE",
-                        "subscriber": subscriber,
-                        "broker_id": broker_id,
-                    }
-                ).encode()
-            )
-            data = s.recv(1024)
-            print("Received", repr(data))
-            if repr(data) == SOCKET_STATUS.WRITE_SUCCESS.value:
-                self._logger.info(
-                    f"Subscriber {subscriber} subscribed to broker {broker_id} with host {broker.host} and socket_port {broker.socket_port}"
-                )
-                self._global_subscribers.append(subscriber)
-                return STATUS.SUCCESS
-            else:
-                self._logger.error(
-                    f"Subscriber {subscriber} failed to subscribe to broker {broker_id} with host {broker.host} and socket_port {broker.socket_port}"
-                )
-                return STATUS.ERROR
-
-    # def get_broker_for_partition(self, partition):
-    #     brokers = self._partitions[partition]
-    #     return random.choice(brokers)
-
     def hash_message_key(self, message_key):
         hasher = hashlib.sha256()
         hasher.update(message_key.encode('utf-8'))
@@ -247,13 +165,6 @@ class ZooKeeper(Broker):
             else:
                 return STATUS.ERROR
 
-    def _get_next_broker(self, current_broker_id):
-        # Get the next broker in the list that is not the current broker
-        for broker_id in self._brokers:
-            if broker_id != current_broker_id:
-                return broker_id
-        return None
-
     # Overriding the Broker's "handle_client" method
     async def handle_client(self, reader, writer):
         while True:
@@ -277,12 +188,6 @@ class ZooKeeper(Broker):
                 broker_id = idf
                 partition = self._last_assigned_partition
                 self._last_assigned_partition += 1
-
-                # kiosk
-                # self._broker_list.append((partition, broker_id))
-                # self._brokers[broker_id] = Broker(host, 8000, 8888, ping_port)
-
-                # self._broker_list.sort()
 
                 # choose a broker to take the replica of the partition
                 replica_broker_id = None
@@ -319,38 +224,6 @@ class ZooKeeper(Broker):
                 self._partitions[partition] = broker_id
                 self._partitions_replica[partition] = replica_broker_id
 
-                # if partition not in self._partitions_broker:
-                #     self._partitions_broker[partition] = []
-                # self._partitions_broker[partition] = broker_id
-
-                # # replica
-                # other_broker_id=self._get_next_broker(broker_id)
-                # if other_broker_id ==None:
-                #     my_tuple = (broker_id, partition)
-                #     self.first_replica.append(my_tuple)
-                # if len(self._brokers)>2:
-                #     if partition not in self._partitions_replica:
-                #         self._partitions_replica[partition] = []
-                #     self._partitions_replica[partition] = other_broker_id
-                #     other_Broker=self._brokers[other_broker_id]
-                #     other_Broker._create_pqueue(partition,is_replica=True)
-                #     print("Replica Created successfully")
-                # if len(self._brokers)==2:
-                #     if partition not in self._partitions_replica:
-                #         self._partitions_replica[partition] = []
-                #     self._partitions_replica[partition] = other_broker_id
-                #     other_Broker=self._brokers[other_broker_id]
-                #     other_Broker._create_pqueue(partition,is_replica=True)
-                #     my_tuple = self.first_replica[0]
-                #     first_broker_id = my_tuple[0]
-                #     first_partition = my_tuple[1]
-                #     if first_partition not in self._partitions_replica:
-                #         self._partitions_replica[first_partition] = []
-                #     self._partitions_replica[first_partition] = first_broker_id
-                #     other_Broker=self._brokers[first_broker_id]
-                #     other_Broker._create_pqueue(first_partition,is_replica=True)
-                #     print("Replica Created successfully")
-                #     print("Replica Created successfully")
 
             else:
                 addr = writer.get_extra_info("peername")

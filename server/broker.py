@@ -25,8 +25,6 @@ class Broker:
     def __init__(self, host, socket_port, http_port, ping_port):
         self.id = str(uuid.uuid4())
         self._pqueues = {}
-        # self._queue = queue.Queue()
-        # self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
         self._socket_port = int(socket_port)
