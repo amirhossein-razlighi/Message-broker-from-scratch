@@ -85,4 +85,3 @@ class TestPushPull(unittest.TestCase):
             asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "2"}))
             asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "3"}))
             s.close()
-        exit(0)

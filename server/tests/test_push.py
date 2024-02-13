@@ -57,4 +57,3 @@ class TestPush(unittest.TestCase):
             asyncio.run(push_message(random_key, random_value + "2"))
             asyncio.run(push_message(random_key, random_value + "3"))
             s.close()
-            exit(0)
