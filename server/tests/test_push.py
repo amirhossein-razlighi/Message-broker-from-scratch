@@ -14,6 +14,18 @@ import status
 from broker import Broker
 from zookeeper import ZooKeeper
 
+client_socket = None
+
+async def push_message(key: str, value: str):
+    if client_socket is None:
+        # TODO return error
+        return None
+    message = {"type": "PUSH", "key": key, "value": value}
+
+    client_socket.send(json.dumps(message).encode())
+    data = client_socket.recv(1024).decode()
+    assert data == str(status.SOCKET_STATUS.WRITE_SUCCESS.value)
+
 class TestPush(unittest.TestCase):
     def test_push(self):
         zookeeper = ZooKeeper("127.0.0.1", 8001, 8002, 8003)
@@ -33,15 +45,15 @@ class TestPush(unittest.TestCase):
         broker_thread.start()
         sleep(1)
 
-        host = "127.0.0.1"
-        port = 8004
+        host = "localhost"
+        port = 8001
+        global client_socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            client_socket = s
             s.connect((host, port))
             random_key = "wow" + str(random.randint(0, 1000))
             random_value = "bye" + str(random.randint(0, 1000))
-            message = {"type": "PUSH", "key": random_key, "value": random_value}
-            s.sendall(json.dumps(message).encode())
-            data = s.recv(1024).decode()
-            data = data.strip()
-            assert data == str(status.SOCKET_STATUS.WRITE_SUCCESS.value)
+            asyncio.run(push_message(random_key, random_value + "1"))
+            asyncio.run(push_message(random_key, random_value + "2"))
+            asyncio.run(push_message(random_key, random_value + "3"))
             s.close()
