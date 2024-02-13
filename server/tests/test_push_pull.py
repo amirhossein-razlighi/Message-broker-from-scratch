@@ -38,6 +38,7 @@ async def pull_message(test_target=None):
         print(repr(data))
         return
     host_b, port_b, part_no = data.split(",")
+    print(host_b, port_b, part_no)
     port_b = int(port_b)
     message["part_no"] = int(part_no)
 
@@ -84,4 +85,3 @@ class TestPushPull(unittest.TestCase):
             asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "2"}))
             asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "3"}))
             s.close()
-            asyncio.sleep(1)
