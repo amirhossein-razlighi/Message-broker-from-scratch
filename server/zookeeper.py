@@ -267,9 +267,10 @@ class ZooKeeper(Broker):
                         text = (
                             ",".join(str(x) for x in self.addresses[broker_id])
                             + ","
-                            + partition_number
+                            + str(partition_number)
                         )
                         writer.write(text.encode())
+                        print(f"SUBSCRIBE SENT TO CLIENT")
                     else:
                         writer.write("There is not broker".encode())
                     await writer.drain()

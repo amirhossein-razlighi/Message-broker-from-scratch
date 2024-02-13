@@ -67,7 +67,7 @@ class Broker:
         while True:
             try:
                 if not len(self._broker_subscribers) == 0:
-                    selected_subscriber = random.choice(self._broker_subscribers.keys())
+                    selected_subscriber = random.choice(list(self._broker_subscribers.keys()))
                     message = self._read(self._broker_subscribers[selected_subscriber])
                     if message is None:
                         await asyncio.sleep(5)
@@ -127,9 +127,9 @@ class Broker:
         subscriber = {"host": subscriber[0], "socket_port": subscriber[1]}
         self._logger.info(f"Received SUBSCRIBE message from {subscriber}")
         self._logger.info(
-            f"Subscriber {subscriber} subscribed to broker {(subscriber[0], subscriber[1])}"
+            f"Subscriber {subscriber} subscribed to broker {(subscriber['host'], subscriber['socket_port'])}"
         )
-        self._broker_subscribers[(subscriber[0], subscriber[1])] = part_no
+        self._broker_subscribers[(subscriber['host'], subscriber['socket_port'])] = int(part_no)
         asyncio.create_task(self._subscribe_checker_and_notifier(writer))
         return STATUS.SUCCESS
 

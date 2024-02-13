@@ -106,11 +106,11 @@ async def subscribe(f: Callable):
     if repr(data).startswith("There is not"):
         print(repr(data))
         return
-    host_b, port_b, bid, par_no = data.split(",")
+    host_b, port_b, par_no = data.split(",")
     port_b = int(port_b)
     client_subscribe_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_subscribe_socket.connect((host_b, port_b))
-    message_1 = {"type": "SUBSCRIBE", "broker_id": bid, "part_no": par_no}
+    message_1 = {"type": "SUBSCRIBE", "broker_id": "0", "part_no": par_no}
     client_subscribe_socket.send(json.dumps(message_1).encode())
     new_data = client_subscribe_socket.recv(1024).decode()
 
@@ -127,7 +127,7 @@ def receive_message(f=None):
         try:
             data = client_subscribe_socket.recv(1024).decode()
             if not repr(data).startswith("No message"):
-                if f:
+                if f is not None:
                     data = f(repr(data).strip())
             data = str(data)
             print(f"Received from server: {data}")
@@ -153,8 +153,8 @@ async def main():
     await push_message(f"{rand_key}", f"world {rand_value + 1}")
     await push_message(f"{rand_key}", f"world {rand_value + 2}")
     await subscribe(None)
-    # await pull_message()
-    # await pull_message()
+    await pull_message()
+    await pull_message()
 
     """ TEST SUBSCRIBE/PUSH/PULL
     loop = asyncio.get_event_loop()
@@ -178,7 +178,7 @@ async def main():
         break
     """
 
-    """ Interactive TEST:
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         client_socket = s
         s.connect((host_name, port))
@@ -202,8 +202,9 @@ async def main():
             else:
                 print("Invalid choice")
         client_socket.close()
-    """
 
+    """
+    
 
 # Example test scenarios in the client
 
