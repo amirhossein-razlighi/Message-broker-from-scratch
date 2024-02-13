@@ -30,7 +30,7 @@ class ZooKeeper(Broker):
         self._partitions_replica = {}  # dict: partition_number -> replica broker_id
         # check if the broker_id is up (1) or down (0)
         self.is_up = {}
-        # check if the broker is empty or not
+        # check if the broker is empty or not , dict: broker_id -> is_up (1) or not(0)
         self.is_empty = {}
         self.ping_addresses = {}
         self._last_assigned_partition = 0  # Used to assign partitions to brokers
@@ -56,9 +56,38 @@ class ZooKeeper(Broker):
         self.update_broker_status(broker_id, 1)
         print(f"Broker {broker_id} started.")
 
+    def partitions_move(self, broker_id):
+        # make active partitions of broker_id active in it's replica 
+        for part in self._partitions:
+            if self._partitions[part] == broker_id:
+                message = {
+                    "type": "PARTITION_ACTIVATE",
+                    "partition": part
+                }
+                broker_id_replica_part = self._partitions_replica[part]
+                address_replica_broker = self.addresses[broker_id_replica_part]
+                self.send_message_to_broker(address_replica_broker[0], address_replica_broker[1], message)
+                self._partitions_replica[part] = None
+                self._partitions[part] = broker_id_replica_part
+
+        # notify main partition brokers that their replica is down
+        for part in self._partitions_replica:
+            if self._partitions_replica[part] == broker_id:
+                message = {
+                    "type": "REPLICA_DOWN",
+                    "partition": part
+                }
+                broker_id_main_part = self._partitions[part]
+                address_main_broker = self.addresses[broker_id_main_part]
+                self.send_message_to_broker(address_main_broker[0], address_main_broker[1], message)
+                self._partitions_replica[part] = None
+
+
     def stop_broker(self, broker_id):
         self.update_broker_status(broker_id, 0)
-        # TODO remove broker from every where
+        self.is_empty.pop(broker_id)
+        self.partitions_move(broker_id)
+        self.addresses.pop(broker_id)
         self.ping_addresses.pop(broker_id)
         self._logger.info(f"Broker {broker_id} removed.")
 
