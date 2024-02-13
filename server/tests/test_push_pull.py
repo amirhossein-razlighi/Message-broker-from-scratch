@@ -30,6 +30,7 @@ async def push_message(key: str, value: str):
 async def pull_message(test_target=None):
     if client_socket is None:
         # TODO return error
+        print("Socket is none")
         return None
     message = {"type": "PULL"}
     client_socket.send(json.dumps(message).encode())
@@ -56,19 +57,19 @@ class TestPushPull(unittest.TestCase):
         zookeeper = ZooKeeper("127.0.0.1", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
         zookeeper_thread.start()
-        sleep(1)
+        sleep(5)
         broker = Broker("127.0.0.1", 8004, 8005, 8006)
         broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
-        sleep(1)
+        sleep(5)
         broker = Broker("127.0.0.1", 8007, 8008, 8009)
         broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
-        sleep(1)
+        sleep(5)
 
         host = "localhost"
         port = 8001
