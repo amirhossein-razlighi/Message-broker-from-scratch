@@ -54,7 +54,7 @@ services:
     image: amirhosseinrazlighi/server_app:latest
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 1
     depends_on:
       zookeepers:
         condition: service_healthy
@@ -71,8 +71,7 @@ services:
     image: amirhosseinrazlighi/zookeeper_app:latest
     deploy:
       mode: replicated
-      replicas: 2
-    # entrypoint: sleep 10000
+      replicas: 1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 20s
@@ -86,7 +85,7 @@ services:
       replicas: 2
     # entrypoint: sleep 10000
     depends_on:
-      zookeepers:
+      brokers:
         condition: service_healthy
       brokers:
         condition: service_healthy

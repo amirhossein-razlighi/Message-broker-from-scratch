@@ -58,7 +58,9 @@ class ZooKeeper(Broker):
 
     def stop_broker(self, broker_id):
         self.update_broker_status(broker_id, 0)
-        print(f"Broker {broker_id} stopped.")
+        # TODO remove broker from every where
+        self.ping_addresses.pop(broker_id)
+        self._logger.info(f"Broker {broker_id} removed.")
 
     def consume(self, command='pull'):
         if command == 'sub':
@@ -75,22 +77,16 @@ class ZooKeeper(Broker):
         return None
 
     def send_heartbeat(self, broker_id):
-        broker_address = self.ping_addresses[broker_id]
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(3)
-                s.connect(broker_address)
-                s.sendall(b"PING")
-                self.start_broker(broker_id)
-                print(f"Sent heartbeat to {broker_address}")
-        except socket.timeout:
-            self.stop_broker(broker_id)
-            print(f"Timeout sending heartbeat to {broker_address}")
-        except Exception as e:
-            self.stop_broker(broker_id)
-            print(f"Error sending heartbeat to {broker_address}: {e}")
+        broker_address = self.ping_addresses[broker_id][0]
+        ping_resp = os.system(f"ping -c 1 {broker_address} > /dev/null 2>&1")
+        if ping_resp == 0:
+            return True  # Broker is up
+        else:
+            return False
 
     def health_check_thread(self):
+        self._logger.info("health check is starting")
+        self._logger.info(f"Broker list: {self.ping_addresses}")
         while True:
             for broker_address in self.ping_addresses:
                 print("Checking broker", broker_address)
@@ -115,6 +111,9 @@ class ZooKeeper(Broker):
             target=asyncio.run, args=(self.socket_thread(),)
         )
         socket_thread.start()
+
+        health_check_thread = threading.Thread(target=self.health_check_thread, daemon=True)
+        health_check_thread.start()
 
         http_thread = threading.Thread(
             target=asyncio.run, args=(uvicorn.run(app, host=host, port=int(http_port)),)
@@ -197,6 +196,7 @@ class ZooKeeper(Broker):
                 self._logger.info(
                     f"partition {partition} added in broker {broker_id} with ip {host}"
                 )
+
                 if len(self.addresses) > 1:
                     replica_broker_id = random.choice(list(self.addresses.keys()))
                     self._partitions_replica[partition] = replica_broker_id
