@@ -25,8 +25,6 @@ class Broker:
     def __init__(self, host, socket_port, http_port, ping_port):
         self.id = str(uuid.uuid4())
         self._pqueues = {}
-        # self._queue = queue.Queue()
-        # self._replica_queue = queue.Queue()
         self._app = app
         self._host = host
         self._socket_port = int(socket_port)
@@ -111,7 +109,10 @@ class Broker:
             return STATUS.ERROR
         self._logger.info(f"Writing message {json_dict['value']} to part_no {part_no}")
         print(f"Writing message {json_dict['value']} to part_no {part_no}")
-        message = self._pqueues[part_no].write_new_message(json_dict["value"])
+        key_value_json = {}
+        key_value_json["key"] = json_dict["key"]
+        key_value_json["value"] = json_dict["value"]
+        message = self._pqueues[part_no].write_new_message(key_value_json)
         self._logger.info(f"Message written to part_no {part_no}")
         print(f"Message written to part_no {part_no}")
         self.is_empty = 0  # TODO ?
@@ -126,8 +127,7 @@ class Broker:
             part_no = int(json_dict["part_no"])
             self._pqueues[part_no]
         except:
-
-            part_no = random.choice(list(self._pqueues.keys()))
+            part_no = 0
             self._logger.info(f"Selected part_no {part_no}")
 
         self._logger.info(f"Reading message from part_no {part_no}")
@@ -188,6 +188,7 @@ class Broker:
                 await writer.drain()
             elif json_dict["type"] == "PULL":
                 message = self._pull(json_dict)
+                message = str(message)
                 response = message + "\n" if message is not None else "No message\n"
                 writer.write(response.encode())
                 await writer.drain()

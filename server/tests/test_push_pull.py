@@ -64,5 +64,5 @@ class TestPushPull(unittest.TestCase):
                 new_data = new_client_socket.recv(1024).decode()
                 
                 new_client_socket.close()
-                assert new_data.strip() == random_value
+                assert new_data.strip() == str({"key": random_key, "value": random_value})
             s.close()
