@@ -33,21 +33,21 @@ class TestPush(unittest.TestCase):
         zookeeper = ZooKeeper("127.0.0.1", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
         zookeeper_thread.start()
-        sleep(10)
+        sleep(1)
         broker = Broker("127.0.0.1", 8004, 8005, 8006)
         broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
-        sleep(10)
+        sleep(1)
         broker = Broker("127.0.0.1", 8007, 8008, 8009)
         broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
-        sleep(10)
+        sleep(1)
 
-        host = "localhost"
+        host = socket.gethostbyname("localhost")
         port = 8001
         global client_socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
