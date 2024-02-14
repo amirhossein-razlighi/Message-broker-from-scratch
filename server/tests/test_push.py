@@ -19,7 +19,6 @@ client_socket = None
 
 async def push_message(key: str, value: str):
     if client_socket is None:
-        # TODO return error
         return None
     message = {"type": "PUSH", "key": key, "value": value}
 

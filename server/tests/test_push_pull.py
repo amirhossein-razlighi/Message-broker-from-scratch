@@ -16,6 +16,7 @@ from zookeeper import ZooKeeper
 
 client_socket = None
 
+
 async def push_message(key: str, value: str):
     if client_socket is None:
         # TODO return error
@@ -26,10 +27,10 @@ async def push_message(key: str, value: str):
     data = client_socket.recv(1024).decode()
     assert data == str(status.SOCKET_STATUS.WRITE_SUCCESS.value)
 
+
 # pull message from server
 async def pull_message(test_target=None):
     if client_socket is None:
-        # TODO return error
         print("Socket is none")
         return None
     message = {"type": "PULL"}
@@ -52,8 +53,10 @@ async def pull_message(test_target=None):
     assert new_data == str(test_target)
     new_client_socket.close()
 
+
 class TestPushPull(unittest.TestCase):
-    def test_push_pull(self):
+    def __init__(self, *args, **kwargs):
+        super(TestPushPull, self).__init__(*args, **kwargs)
         zookeeper = ZooKeeper("127.0.0.1", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
         zookeeper_thread.start()
@@ -71,6 +74,7 @@ class TestPushPull(unittest.TestCase):
         broker_thread.start()
         sleep(5)
 
+    def test_push_pull(self):
         host = "localhost"
         port = 8001
         global client_socket
@@ -82,7 +86,19 @@ class TestPushPull(unittest.TestCase):
             asyncio.run(push_message(random_key, random_value + "1"))
             asyncio.run(push_message(random_key, random_value + "2"))
             asyncio.run(push_message(random_key, random_value + "3"))
-            asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "1"}))
-            asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "2"}))
-            asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "3"}))
+            asyncio.run(
+                pull_message(
+                    test_target={"key": random_key, "value": random_value + "1"}
+                )
+            )
+            asyncio.run(
+                pull_message(
+                    test_target={"key": random_key, "value": random_value + "2"}
+                )
+            )
+            asyncio.run(
+                pull_message(
+                    test_target={"key": random_key, "value": random_value + "3"}
+                )
+            )
             s.close()
