@@ -9,21 +9,23 @@ import java.net.Socket;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Client {
     private static String[] zookeeperIps = {"127.0.0.1"};
     private static int port = 8000;
     private static String masterIp = null;
     private static Socket clientSocket = null;
+    private static Socket clientSubscribeSocket = null;
     private static ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public static void main(String[] args) {
         try {
             // masterIp = findMaster();
-            masterIp = "127.0.0.1";
             if (masterIp == null) {
                 System.out.println("No master found");
-                return;
+                // return;
+                masterIp = zookeeperIps[0];
             }
             clientSocket = openConnection(masterIp, port);
             System.out.println("Connected to server");
@@ -84,7 +86,6 @@ public class Client {
         message.addProperty("type", "PUSH");
         message.addProperty("key", key);
         message.addProperty("value", value);
-        message.addProperty("part_no", "0");
 
         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
         out.println(message.toString());
@@ -103,32 +104,70 @@ public class Client {
 
         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         String response = in.readLine();
-        System.out.println("Received from server: " + response);
+        if (response.startsWith("Brokers")) {
+            System.out.println(response);
+            return;
+        }
+        String[] parts = response.split(",");
+        String hostB = parts[0];
+        int portB = Integer.parseInt(parts[1]);
+        int partNo = Integer.parseInt(parts[2]);
+        message.addProperty("part_no", partNo);
+
+        Socket newClientSocket = new Socket(hostB, portB);
+        PrintWriter newOut = new PrintWriter(newClientSocket.getOutputStream(), true);
+        newOut.println(message.toString());
+
+        BufferedReader newIn = new BufferedReader(new InputStreamReader(newClientSocket.getInputStream()));
+        String newResponse = newIn.readLine();
+        System.out.println("Received from server: " + newResponse);
+
+        newClientSocket.close();
     }
 
     private static void subscribe() throws IOException {
         JsonObject message = new JsonObject();
         message.addProperty("type", "SUBSCRIBE");
-        message.addProperty("broker_id", "0");
 
         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
         out.println(message.toString());
 
         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         String response = in.readLine();
-        System.out.println("Received from server: " + response);
+        if (response.startsWith("There is not")) {
+            System.out.println(response);
+            return;
+        }
+        String[] parts = response.split(",");
+        String hostB = parts[0];
+        int portB = Integer.parseInt(parts[1]);
+        int partNo = Integer.parseInt(parts[2]);
 
-        executor.submit(Client::receiveMessage);
+        clientSubscribeSocket = new Socket(hostB, portB);
+        PrintWriter subscribeOut = new PrintWriter(clientSubscribeSocket.getOutputStream(), true);
+        JsonObject subscribeMessage = new JsonObject();
+        subscribeMessage.addProperty("type", "SUBSCRIBE");
+        subscribeMessage.addProperty("broker_id", "0");
+        subscribeMessage.addProperty("part_no", partNo);
+        subscribeOut.println(subscribeMessage.toString());
+
+        BufferedReader subscribeIn = new BufferedReader(new InputStreamReader(clientSubscribeSocket.getInputStream()));
+        String subscribeResponse = subscribeIn.readLine();
+        System.out.println("Received from server: " + subscribeResponse);
+
+        executor.submit(() -> receiveMessage());
     }
 
     private static void receiveMessage() {
         try {
-            clientSocket.setSoTimeout(3000);
-            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            clientSubscribeSocket.setSoTimeout(6000);
+            BufferedReader in = new BufferedReader(new InputStreamReader(clientSubscribeSocket.getInputStream()));
             while (true) {
                 try {
                     String response = in.readLine();
-                    System.out.println("Received from server: " + response);
+                    if (!response.startsWith("No message")) {
+                        System.out.println("Received from server: " + response);
+                    }
                 } catch (IOException e) {
                     continue;
                 }
