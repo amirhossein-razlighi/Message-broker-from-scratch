@@ -211,10 +211,8 @@ class Broker:
             addr = writer.get_extra_info("peername")
             try:
                 message = data.decode()
-                print(f"IN MESSAGGE {message}")
             except:
                 message = pickle.loads(data)
-                print(f"Received {message} from {addr}")
                 await self.handle_broker_message(reader, writer, addr, message)
                 break
 
