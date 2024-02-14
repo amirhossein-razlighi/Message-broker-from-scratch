@@ -33,7 +33,7 @@ logging.log(logging.INFO, "Client started")
 # find the master zookeeper
 def find_master():
     for ip in zookeeper_ips:
-        response = requests.get(f"{ip}/zookeeper")
+        response = requests.get(f"http://{ip}/zookeeper")
         if response.status_code == 200:
             return ip
     return None
@@ -139,22 +139,20 @@ async def main():
     global client_socket
     global master_ip
 
-    # master_ip = find_master()
-    # if master_ip is None:
-    #     print("No master found")
-    #     return
 
     host_name = os.getenv("ZOOKEEPER")
+    # zookeeper_ips.append(host_name)
+    # master_ip = find_master()
     client_socket = open_connection(host_name, port)
 
-    rand_key = random.randint(0, 100)
-    rand_value = random.randint(0, 100)
-    await push_message(f"{rand_key}", f"world {rand_value}")
-    await push_message(f"{rand_key}", f"world {rand_value + 1}")
-    await push_message(f"{rand_key}", f"world {rand_value + 2}")
-    await subscribe(None)
-    await pull_message()
-    await pull_message()
+    # rand_key = random.randint(0, 100)
+    # rand_value = random.randint(0, 100)
+    # await push_message(f"{rand_key}", f"world {rand_value}")
+    # await push_message(f"{rand_key}", f"world {rand_value + 1}")
+    # await push_message(f"{rand_key}", f"world {rand_value + 2}")
+    # await subscribe(None)
+    # await pull_message()
+    # await pull_message()
 
     """ TEST SUBSCRIBE/PUSH/PULL
     loop = asyncio.get_event_loop()
@@ -177,7 +175,6 @@ async def main():
         await pull_message()
         break
     """
-
     """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         client_socket = s
@@ -202,9 +199,7 @@ async def main():
             else:
                 print("Invalid choice")
         client_socket.close()
-
     """
-    
 
 # Example test scenarios in the client
 
