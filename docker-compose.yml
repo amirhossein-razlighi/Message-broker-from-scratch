@@ -71,12 +71,14 @@ services:
     image: amirhosseinrazlighi/zookeeper_app:latest
     deploy:
       mode: replicated
-      replicas: 1
+      replicas: 3
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 20s
       timeout: 10s
       retries: 3
+    environment:
+      - ZOOKEEPER_LIST=[sad-zookeepers-1, sad-zookeepers-2, sad-zookeepers-3]
 
   clients:
     image: amirhosseinrazlighi/client_app:latest

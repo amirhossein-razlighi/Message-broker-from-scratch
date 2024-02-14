@@ -39,6 +39,11 @@ class ZooKeeper(Broker):
 
         self._global_subscribers = []
         self.is_zookeeper_nominee = True
+        self.zookeepers_data = {} # zookeeper broker_id to it's (priority, address, port)
+        self.zookeeper_priority = random.randint(1, 100)
+        self.wait_before_election = random.randint(1, 5) / 5
+        # self.election must be an object with election_id and my_votes
+        self.election = None
 
     def remove_broker(self, broker):
         pass
@@ -94,6 +99,36 @@ class ZooKeeper(Broker):
                 self._partitions_replica[part] = None
 
 
+    def vote(self):
+        lst = sorted(self.zookeepers_data.items(), key=lambda x: x[1])
+        for zookeeper in lst:
+            if zookeeper[0] != self.zookeeper_id:
+                if self.send_heartbeat(zookeeper[0], True):
+                    return zookeeper[0]
+                else:
+                    return self.zookeeper_id
+
+
+    async def start_an_election(self):
+        self.election = {
+            "election_id": random.randint(1, 1000),
+            "my_votes": 0
+        }
+        self._logger.info(f"Starting an election with election_id {self.election['election_id']}")
+        self._logger.info(f"Zookeeper {self.id} is sending vote requests to other zookeepers")
+        for zookeeper in self.zookeepers_data:
+            message = {
+                "type": "VOTE_REQUEST",
+                "election_id": self.election["election_id"]
+            }
+            if zookeeper != self.id:
+                zookeeper_host_ip = self.zookeepers_data[zookeeper][1]
+                zookeeper_port = self.zookeepers_data[zookeeper][2]
+                await self.send_message_to_broker(zookeeper_host_ip, zookeeper_port, message)
+        self._logger.info(f"Zookeeper {self.id} has sent vote requests to other zookeepers")
+
+
+
     async def stop_broker(self, broker_id):
         self.update_broker_status(broker_id, 0)
         self.is_empty.pop(broker_id)
@@ -101,6 +136,7 @@ class ZooKeeper(Broker):
         self.addresses.pop(broker_id)
         self.ping_addresses.pop(broker_id)
         self._logger.info(f"Broker {broker_id} removed.")
+
 
     def consume(self, command="pull"):
         if command == "sub":
@@ -113,31 +149,37 @@ class ZooKeeper(Broker):
             partition_number = random.choice(list(self._partitions.keys()))
             return self._partitions[partition_number], partition_number
         return None
+    
 
-    def send_heartbeat(self, broker_id):
-        broker_address = self.ping_addresses[broker_id][0]
-        ping_resp = os.system(f"ping -c 1 {broker_address} > /dev/null 2>&1")
-        if ping_resp == 0:
-            return True  # Broker is up
-        else:
-            return False
+    def send_heartbeat(self, broker_address):
+        for _ in range(3):
+            ping_resp = os.system(f"ping -c 1 {broker_address} > /dev/null 2>&1")
+            if ping_resp == 0:
+                return True  # Broker is up
+            time.sleep(0.2)
+        
+        return False  # Broker is down
 
     async def health_check_thread(self):
         self._logger.info("health check is starting")
         self._logger.info(f"Broker list: {self.ping_addresses}")
         while True:
             for broker_id in self.ping_addresses:
-                broker_is_up = self.send_heartbeat(broker_id)
-                self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is being pinged")
-                if not broker_is_up:
-                    # try 3 more times with distance if broker is not up, call stop_broker
-                    for _ in range(3):
-                        broker_is_up = self.send_heartbeat(broker_id)
-                        time.sleep(0.2)
-                    if not broker_is_up:
-                        self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is down")
-                        await self.stop_broker(broker_id)
-                        break
+                broker_address = self.ping_addresses[broker_id][0]
+                if not self.send_heartbeat(broker_address):
+                    self._logger.info(f"Broker {broker_address} is down")
+                    await self.stop_broker(broker_id)
+                    break
+            
+            
+            # check if master zookeeper is up
+            if self._zookeeper is not None:
+                master_is_up = self.send_heartbeat(self._zookeeper["host"])
+                if not master_is_up:
+                    self._logger.info(f"Master zookeeper is down detected by {self.id}")
+                    time.sleep(self.wait_before_election)
+                    if self.election is None:
+                        self.start_an_election()
 
             time.sleep(3)
 
