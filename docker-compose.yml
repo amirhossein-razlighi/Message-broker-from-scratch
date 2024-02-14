@@ -85,6 +85,8 @@ services:
     depends_on:
       brokers:
         condition: service_healthy
+      zookeepers:
+        condition: service_healthy
     environment:
       - BROKER=sad-brokers-1
       - ZOOKEEPER=sad-zookeepers-1

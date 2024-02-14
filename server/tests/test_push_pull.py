@@ -16,6 +16,7 @@ from zookeeper import ZooKeeper
 
 client_socket = None
 
+
 async def push_message(key: str, value: str):
     if client_socket is None:
         # TODO return error
@@ -25,6 +26,7 @@ async def push_message(key: str, value: str):
     client_socket.send(json.dumps(message).encode())
     data = client_socket.recv(1024).decode()
     assert data == str(status.SOCKET_STATUS.WRITE_SUCCESS.value)
+
 
 # pull message from server
 async def pull_message(test_target=None):
@@ -51,26 +53,30 @@ async def pull_message(test_target=None):
     assert new_data == str(test_target)
     new_client_socket.close()
 
+
 class TestPushPull(unittest.TestCase):
-    def test_push_pull(self):
+    def __init__(self, *args, **kwargs):
+        super(TestPushPull, self).__init__(*args, **kwargs)
+        time = random.randint(10, 15)
         zookeeper = ZooKeeper("127.0.0.1", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
         zookeeper_thread.start()
-        sleep(1)
+        sleep(time - 3)
         broker = Broker("127.0.0.1", 8004, 8005, 8006)
         broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
-        sleep(1)
+        sleep(time)
         broker2 = Broker("127.0.0.1", 8007, 8008, 8009)
         broker2._zookeeper["host"] = socket.gethostbyname("localhost")
         broker2._zookeeper["socket_port"] = 8001
-        broker_thread = threading.Thread(target=broker2.run, daemon=True)
-        broker_thread.start()
-        sleep(1)
+        broker2_thread = threading.Thread(target=broker2.run, daemon=True)
+        broker2_thread.start()
+        sleep(time)
 
-        host = socket.gethostbyname("localhost")
+    def test_push_pull(self):
+        host = "localhost"
         port = 8001
         global client_socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -81,7 +87,19 @@ class TestPushPull(unittest.TestCase):
             asyncio.run(push_message(random_key, random_value + "1"))
             asyncio.run(push_message(random_key, random_value + "2"))
             asyncio.run(push_message(random_key, random_value + "3"))
-            asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "1"}))
-            asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "2"}))
-            asyncio.run(pull_message(test_target={"key": random_key, "value": random_value + "3"}))
+            asyncio.run(
+                pull_message(
+                    test_target={"key": random_key, "value": random_value + "1"}
+                )
+            )
+            asyncio.run(
+                pull_message(
+                    test_target={"key": random_key, "value": random_value + "2"}
+                )
+            )
+            asyncio.run(
+                pull_message(
+                    test_target={"key": random_key, "value": random_value + "3"}
+                )
+            )
             s.close()

@@ -67,6 +67,12 @@ class Broker:
     async def _subscribe_checker_and_notifier(self, writer):
         while True:
             try:
+                # if writer is closed, remove the subscriber from the list
+                if writer is not None and writer.is_closing():
+                    self._broker_subscribers.pop((writer.get_extra_info("peername")[0], writer.get_extra_info("peername")[1]))
+                    self._logger.info(f"Subscriber {writer.get_extra_info('peername')} removed")
+                    print(f"Subscriber {writer.get_extra_info('peername')} removed")
+                    return
                 if not len(self._broker_subscribers) == 0:
                     selected_subscriber = random.choice(
                         list(self._broker_subscribers.keys())
