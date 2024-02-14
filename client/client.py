@@ -223,7 +223,6 @@ async def main():
             else:
                 print("Invalid choice")
         client_socket.close()
-    """
 
 # Example test scenarios in the client
 

@@ -15,3 +15,5 @@ class SOCKET_STATUS(enum.Enum):
     SUBSCRIBE_SUCCESS = {"status": "OK", "message": "Subscribe successful"}
     SUBSCRIBE_FAILED = {"status": "ERROR", "message": "Subscribe failed"}
     PARTITION_SUCCESS = {"status": "OK", "message": "partition added successfully"}
+    REPLICA_CONSISTENCY_SUCCESS = {"status": "OK", "message": "Replica consistency update successful"}
+    REPLICA_CONSISTENCY_FAILED = {"status": "ERROR", "message": "Replica consistency update failed"}
