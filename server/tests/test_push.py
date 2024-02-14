@@ -48,8 +48,7 @@ class TestPush(unittest.TestCase):
         broker_thread.start()
         sleep(time)
 
-    def test_push(self):
-        host = "localhost"
+        host = socket.gethostbyname("localhost")
         port = 8001
         global client_socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

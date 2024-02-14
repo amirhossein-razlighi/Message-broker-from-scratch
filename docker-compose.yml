@@ -58,7 +58,6 @@ services:
     depends_on:
       zookeepers:
         condition: service_healthy
-    # entrypoint: sleep 10000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 25s
@@ -83,7 +82,6 @@ services:
     deploy:
       mode: replicated
       replicas: 2
-    # entrypoint: sleep 10000
     depends_on:
       brokers:
         condition: service_healthy

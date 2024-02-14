@@ -74,7 +74,9 @@ class Broker:
                     print(f"Subscriber {writer.get_extra_info('peername')} removed")
                     return
                 if not len(self._broker_subscribers) == 0:
-                    selected_subscriber = random.choice(list(self._broker_subscribers.keys()))
+                    selected_subscriber = random.choice(
+                        list(self._broker_subscribers.keys())
+                    )
                     message = self._read(self._broker_subscribers[selected_subscriber])
                     if message is None:
                         await asyncio.sleep(5)
@@ -94,6 +96,7 @@ class Broker:
                     self._logger.info(
                         f"Message sent to subscriber {selected_subscriber}"
                     )
+                    await self.update_replicas()
             except:
                 continue
             await asyncio.sleep(5)
@@ -136,7 +139,9 @@ class Broker:
         self._logger.info(
             f"Subscriber {subscriber} subscribed to broker {(subscriber['host'], subscriber['socket_port'])}"
         )
-        self._broker_subscribers[(subscriber['host'], subscriber['socket_port'])] = int(part_no)
+        self._broker_subscribers[(subscriber["host"], subscriber["socket_port"])] = int(
+            part_no
+        )
         asyncio.create_task(self._subscribe_checker_and_notifier(writer))
         return STATUS.SUCCESS
 
@@ -146,6 +151,7 @@ class Broker:
             client_socket.sendall(pickle.dumps(message))
 
     async def handle_broker_message(self, reader, writer, addr, message):
+        print(f"Received {message} from {addr} (Handle Broker Message)")
         if message["type"] == "ADD_PARTITION":
             replica_address = message["replica_address"]
             self.create_pqueue(message["partition"], False, replica_address)
@@ -159,6 +165,17 @@ class Broker:
             writer.write((str(SOCKET_STATUS.PARTITION_SUCCESS.value) + "\n").encode())
             writer.close()
             return
+
+        elif message["type"] == "REPLICA_CONSISTENCY":
+            part_no = message["partition"]
+            queue_ = pickle.loads(message["queue"])
+            self._pqueues[part_no].queue = queue_
+            self._logger.info(f"Replica consistency updated for partition {part_no}")
+            writer.write(
+                (str(SOCKET_STATUS.REPLICA_CONSISTENCY_SUCCESS.value) + "\n").encode()
+            )
+            writer.close()
+            return
         elif message['type'] == "PARTITION_ACTIVATE":
             part = message["partition"]
             self._pqueues[part].become("primary")
@@ -170,16 +187,32 @@ class Broker:
             self._pqueues[part].remove_replica()
             self._logger.info(f"Partition {part} replica address is removed from primary broker {self.id}")
             return
+    
+    async def update_replicas(self, push=False):
+        for partition_number in self._pqueues.keys():
+            if not self._pqueues[partition_number].is_replica:
+                replica_addr = self._pqueues[partition_number].replica_address
+                if replica_addr is not None:
+                    print(f"Replica address: {replica_addr}")
+                    host, port = replica_addr
+                    host = socket.gethostbyname(host)
+                    port = int(port)
+                    message = {
+                        "type": "REPLICA_CONSISTENCY",
+                        "partition": partition_number,
+                        "queue": pickle.dumps(self._pqueues[partition_number].queue),
+                    }
+                    message = pickle.dumps(message)
+                    await self.send_message_to_broker(host, port, message)
 
     async def handle_client(self, reader, writer):
         while True:
-            data = await reader.read(100)
+            data = await reader.read(1024)
             addr = writer.get_extra_info("peername")
             try:
                 message = data.decode()
             except:
                 message = pickle.loads(data)
-                print(f"Received {message} from {addr}")
                 await self.handle_broker_message(reader, writer, addr, message)
                 break
 
@@ -193,12 +226,14 @@ class Broker:
                     if status == STATUS.SUCCESS
                     else str(SOCKET_STATUS.WRITE_FAILED.value)
                 )
+                await self.update_replicas()
                 writer.write((response + "\n").encode())
                 await writer.drain()
             elif json_dict["type"] == "PULL":
                 message = self._pull(json_dict)
                 message = str(message)
                 response = message + "\n" if message is not None else "No message\n"
+                await self.update_replicas()
                 writer.write(response.encode())
                 await writer.drain()
             elif json_dict["type"] == "SUBSCRIBE":
