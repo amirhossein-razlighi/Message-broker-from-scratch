@@ -139,7 +139,6 @@ def receive_message(f=None):
                 if f is not None:
                     args = repr(data).replace("'", '"').strip()
                     args = str(args)
-                    print(f"args is_ {args}")
                     args = args.split("\\n")
                     # remove the elements which are empty strings
                     args = list(filter(lambda x: x != "" and x != "'" and x != '"', args))
@@ -152,7 +151,6 @@ def receive_message(f=None):
                             if arg[-1] == '"':
                                 arg = arg[:-1]
                             arg = json.loads(arg)
-                            print("HI1")
                             data = f(arg["key"], arg["value"])
                     else:
                         arg = args[0].strip()
@@ -162,7 +160,6 @@ def receive_message(f=None):
                         if arg[-1] == '"':
                             arg = arg[:-1]
                         arg = json.loads(arg)
-                        print("HI2")
                         data = f(arg["key"], arg["value"])
         except Exception as e:
             continue
@@ -190,7 +187,7 @@ async def main():
         await push_message(f"{key_seq[i]}", f"{i}")
 
     pulled.sort()
-    for i in range(TEST_SIZE):
+    for i in range(len(pulled)):
         if pulled[i]!=i:
             print("DATA loss occurred")
 
