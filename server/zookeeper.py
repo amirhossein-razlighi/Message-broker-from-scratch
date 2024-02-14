@@ -291,7 +291,7 @@ class ZooKeeper(Broker):
                     status = self._push(json_dict)
                     print(f"Status: {status}")
                     if status == STATUS.SUCCESS:
-                        response = str(SOCKET_STATUS.WRITE_SUCCESS.value)
+                        response = str(SOCKET_STATUS.WRITE_SUCCESS.value) #+ "\n" #JAVA
                         writer.write(response.encode())
                     else:
                         writer.write(SOCKET_STATUS.WRITE_ERROR.value.encode())
@@ -302,7 +302,7 @@ class ZooKeeper(Broker):
                     print(f"Broker id: {broker_id}, Partition number: {partition_number}")
                     if broker_id is not None:
                         response = ",".join(str(x) for x in self.addresses[broker_id])
-                        response += "," + str(partition_number)
+                        response += "," + str(partition_number) #+ "\n" #JAVA
                         writer.write(response.encode())
                     else:
                         writer.write("Brokers are empty".encode())
@@ -315,7 +315,7 @@ class ZooKeeper(Broker):
                             ",".join(str(x) for x in self.addresses[broker_id])
                             + ","
                             + str(partition_number)
-                        )
+                        ) #+ "\n" #JAVA
                         writer.write(text.encode())
                         print(f"SUBSCRIBE SENT TO CLIENT")
                     else:
