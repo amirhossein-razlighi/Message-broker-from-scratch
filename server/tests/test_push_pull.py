@@ -73,7 +73,7 @@ class TestPushPull(unittest.TestCase):
         broker2._zookeeper["socket_port"] = 8001
         broker2_thread = threading.Thread(target=broker2.run, daemon=True)
         broker2_thread.start()
-        sleep(time)
+        sleep(time + 1)
 
     def test_push_pull(self):
         host = "localhost"
