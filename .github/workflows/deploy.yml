@@ -42,7 +42,6 @@ jobs:
       - name: Copy docker compose file
         run: |
           scp -i $HOME/.ssh/id_rsa docker-compose.yml ubuntu@185.97.117.121:/home/ubuntu/
-          EOF
 
 #      - name: Run Docker Compose on server
 #        run: |
