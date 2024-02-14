@@ -36,13 +36,17 @@ for i in range(KEY_SIZE):
     pulled[f"{i}"] = []
 
 def validate_pull(key: str, val: str):
-    next_val = int(val)
-    if len(pulled[key]) != 0:
-        prev_val = pulled[key][-1]
-        if prev_val >= next_val:
-            print(f"order violation, seq: [{prev_val}, {next_val}]\tkey: [{key}]")
-            sys.exit(255)
-    pulled[key].append(next_val)
+    try:
+        next_val = int(val)
+        if len(pulled[key]) != 0:
+            prev_val = pulled[key][-1]
+            if prev_val >= next_val:
+                print(f"order violation, seq: [{prev_val}, {next_val}]\tkey: [{key}]")
+                sys.exit(255)
+        pulled[key].append(next_val)
+    except Exception as e:
+        print(f"Exception: {e}")
+        sys.exit(255)
 
 # find the master zookeeper
 def find_master():
@@ -136,23 +140,37 @@ async def subscribe(f: Callable):
 # but if response doesn't come in 5 seconds, we continue with our work
 def receive_message(f=None):
     global client_subscribe_socket
-    client_subscribe_socket.settimeout(3)
+    client_subscribe_socket.settimeout(6)
     while True:
         try:
             data = client_subscribe_socket.recv(1024).decode()
             if not repr(data).startswith("No message"):
                 if f is not None:
-                    args = repr(data).strip()
-                    args = args.split("\n")
+                    args = repr(data).replace("'", '"').strip()
+                    args = str(args)
+                    args = args.split("\\n")
+                    # remove the elements which are empty strings
+                    args = list(filter(lambda x: x != "" and x != "'" and x != '"', args))
                     if len(args) > 1:
-                        arg = args.pop(0)
+                        for arg in args:
+                            arg = arg.strip()
+                            #remove the first \" and last \" from the string
+                            if arg[0] == '"':
+                                arg = arg[1:]
+                            if arg[-1] == '"':
+                                arg = arg[:-1]
+                            arg = json.loads(arg)
+                            data = f(arg["key"], arg["value"])
+                    else:
+                        arg = args[0].strip()
+                        #remove the first \" and last \" from the string
+                        if arg[0] == '"':
+                            arg = arg[1:]
+                        if arg[-1] == '"':
+                            arg = arg[:-1]
                         arg = json.loads(arg)
-                        print(f"arg is {arg}")
                         data = f(arg["key"], arg["value"])
-            data = str(data)
-            print(f"Received from server (in recv_message): {data}")
         except Exception as e:
-            print(f"Exception: {e}")
             continue
 
 
@@ -165,13 +183,14 @@ async def main():
 
     for i in range(TEST_SIZE // 4):
         await push_message(f"{key_seq[i]}", f"{i}")
-    
+
     for i in range(SUBSCRIER_COUNT):
         await subscribe(validate_pull)
     
     for i in range(TEST_SIZE // 4, TEST_SIZE):
         await push_message(f"{key_seq[i]}", f"{i}")
 
+    sleep(10)
     print("order test passed successfully!")
 
 if __name__ == "__main__":
