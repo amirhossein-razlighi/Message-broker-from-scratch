@@ -18,7 +18,6 @@ services:
       - "--web.console.templates=/usr/share/prometheus/consoles"
       - "--web.enable-lifecycle"
       - "--web.route-prefix=/"
-      - "--web.external-url=http://127.0.0.1:9090/prometheus"
       - "--web.listen-address=0.0.0.0:9090"
     # restart: always
 
@@ -48,7 +47,6 @@ services:
       - '--path.rootfs=/rootfs'
       - '--web.listen-address=0.0.0.0:9100'
       - '--log.level=info'
-      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
 
   brokers:
     image: amirhosseinrazlighi/server_app:latest
