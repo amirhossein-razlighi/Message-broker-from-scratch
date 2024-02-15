@@ -103,3 +103,4 @@ class TestPushPull(unittest.TestCase):
                 )
             )
             s.close()
+            client_socket.close()
