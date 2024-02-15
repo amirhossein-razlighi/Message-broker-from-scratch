@@ -30,6 +30,8 @@ async def push_message(key: str, value: str):
 class TestPush(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestPush, self).__init__(*args, **kwargs)
+    
+    def test_push(self):
         time = random.randint(10, 15)
         zookeeper = ZooKeeper("127.0.0.1", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
@@ -47,8 +49,7 @@ class TestPush(unittest.TestCase):
         broker_thread = threading.Thread(target=broker.run, daemon=True)
         broker_thread.start()
         sleep(time)
-    
-    def test_push(self):
+
         host = socket.gethostbyname("localhost")
         port = 8001
         global client_socket
