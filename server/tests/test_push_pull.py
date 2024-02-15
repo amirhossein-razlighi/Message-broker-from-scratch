@@ -58,25 +58,24 @@ class TestPushPull(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestPushPull, self).__init__(*args, **kwargs)
         time = random.randint(10, 15)
-        zookeeper = ZooKeeper("127.0.0.1", 8001, 8002, 8003)
+        zookeeper = ZooKeeper("0.0.0.0", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
         zookeeper_thread.start()
-        sleep(time - 3)
-        broker = Broker("127.0.0.1", 8004, 8005, 8006)
+        sleep(time - 2)
+        broker = Broker("0.0.0.0", 8004, 8005, 8006)
         broker._zookeeper["host"] = socket.gethostbyname("localhost")
         broker._zookeeper["socket_port"] = 8001
         broker_thread = threading.Thread(target=broker.run, daemon=True)
-        broker_thread.start()
-        sleep(time)
-        broker2 = Broker("127.0.0.1", 8007, 8008, 8009)
+        broker2 = Broker("0.0.0.0", 8007, 8008, 8009)
         broker2._zookeeper["host"] = socket.gethostbyname("localhost")
         broker2._zookeeper["socket_port"] = 8001
         broker2_thread = threading.Thread(target=broker2.run, daemon=True)
+        broker_thread.start()
         broker2_thread.start()
-        sleep(time + 1)
+        sleep(time)
 
     def test_push_pull(self):
-        host = "localhost"
+        host = "0.0.0.0"
         port = 8001
         global client_socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
