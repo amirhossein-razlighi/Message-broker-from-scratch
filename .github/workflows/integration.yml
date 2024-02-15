@@ -62,6 +62,6 @@ jobs:
     - name: Test Docker Compose
       run: |
         echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
-        docker-compose -f ./docker-compose.yml -p "sad" up zookeepers brokers clients -d
+        docker-compose -f ./docker-compose.yml -p "sad" up -d zookeepers brokers clients
         sleep 35
         docker-compose -f ./docker-compose.yml -p "sad" down
