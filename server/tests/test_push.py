@@ -30,6 +30,8 @@ async def push_message(key: str, value: str):
 class TestPush(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestPush, self).__init__(*args, **kwargs)
+
+    def test_1_first_test(self):
         time = random.randint(10, 15)
         zookeeper = ZooKeeper("0.0.0.0", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
@@ -48,12 +50,11 @@ class TestPush(unittest.TestCase):
         broker_thread.start()
         sleep(time)
 
-    def test_push(self):
-        sleep(15)        
-        print("Testing push")
+    def test_2_second_test(self):
         host = "0.0.0.0"
         port = 8001
         global client_socket
+        assert 1 == 1
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             client_socket = s
             s.connect((host, port))
@@ -63,3 +64,4 @@ class TestPush(unittest.TestCase):
             asyncio.run(push_message(random_key, random_value + "2"))
             asyncio.run(push_message(random_key, random_value + "3"))
             s.close()
+            client_socket.close()

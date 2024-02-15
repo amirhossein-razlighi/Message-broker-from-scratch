@@ -57,6 +57,8 @@ async def pull_message(test_target=None):
 class TestPushPull(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestPushPull, self).__init__(*args, **kwargs)
+
+    def test_1_first_test(self):
         time = random.randint(10, 15)
         zookeeper = ZooKeeper("0.0.0.0", 8001, 8002, 8003)
         zookeeper_thread = threading.Thread(target=zookeeper.run, daemon=True)
@@ -74,8 +76,7 @@ class TestPushPull(unittest.TestCase):
         broker2_thread.start()
         sleep(time)
 
-    def test_push_pull(self):
-        sleep(15)
+    def test_2_second_test(self):
         host = "0.0.0.0"
         port = 8001
         global client_socket
