@@ -188,6 +188,9 @@ class Broker:
             self._pqueues[part].remove_replica()
             self._logger.info(f"Partition {part} replica address is removed from primary broker {self.id}")
             return
+        elif message['type'] == "MOVE_PARTITION_DATA":
+            part = message["partition"]
+            self._pqueues[part]
     
     async def update_replicas(self, push=False):
         for partition_number in self._pqueues.keys():

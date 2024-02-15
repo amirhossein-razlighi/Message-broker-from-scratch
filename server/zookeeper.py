@@ -128,7 +128,7 @@ class ZooKeeper(Broker):
         while True:
             for broker_id in self.ping_addresses:
                 broker_is_up = self.send_heartbeat(broker_id)
-                self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is being pinged")
+                # self._logger.info(f"Broker {self.ping_addresses[broker_id][0]} is being pinged")
                 if not broker_is_up:
                     # try 3 more times with distance if broker is not up, call stop_broker
                     for _ in range(3):
@@ -175,25 +175,25 @@ class ZooKeeper(Broker):
         )
         health_check_thread.start()
 
-    def get_hashed_partitions(self):
-        hasher = hashlib.sha256()
+    def hash_me(self, value):
+        return int(hashlib.sha256(str(value).encode('utf-8')).hexdigest(), 16) % 360
 
+
+    def get_hashed_partitions(self):
         hashed_part_list = []
         hash_to_part = {}
         for part in self._partitions:
-            hasher.update(str(part).encode("utf-8"))
-            hashed_part = int.from_bytes(hasher.digest(), byteorder="big") % 360
+            hashed_part = self.hash_me(part)
             hash_to_part[hashed_part] = part
         
         hashed_part_list.sort()
         return hashed_part_list, hash_to_part
+    
 
     def hash_message_key(self, message_key):
-        hasher = hashlib.sha256()
-        hasher.update(message_key.encode("utf-8"))
-        hashed_value = int.from_bytes(hasher.digest(), byteorder="big") % 360
+        hashed_value = self.hash_me(message_key)
 
-        hashed_part_list, hash_to_part = self.get_hashed_partitions
+        hashed_part_list, hash_to_part = self.get_hashed_partitions()
 
         dist = 361
         for x in hashed_part_list:
@@ -205,15 +205,21 @@ class ZooKeeper(Broker):
             min_hash = hashed_part_list[0]
             part_no = hash_to_part[min_hash]
 
-
-        part_no = hashed_value % len(self._partitions) + 1
         return part_no
     
-    def get_range_index_to_be_moved(self, new_part):
-        hashed_part_list, hash_to_part = self.get_hashed_partitions
-        hasher = hashlib.sha256()
-        hasher.update(str(new_part).encode("utf-8"))
-        hashed_new_part = int.from_bytes(hasher.digest(), byteorder="big") % 360
+    def get_range_index_to_stay_on_part(self, new_part):
+        hashed_part_list, hash_to_part = self.get_hashed_partitions()
+        hashed_new_part = self.hash_me(new_part)
+
+        start_index = (hashed_new_part + 1) % 360
+        end_index = start_index
+        for _ in range(359):
+            if hash_to_part.get(end_index, -1) != -1:
+                return start_index, end_index, hash_to_part[end_index]
+            else:
+                end_index = (end_index + 1) % 360
+        self._logger.info("injayim")
+        return None, None, None
         
 
 
@@ -313,9 +319,28 @@ class ZooKeeper(Broker):
                     self.addresses[replica_broker_id][1],
                     message,
                 )
+                self._logger.info(f"here1")
 
                 self._partitions[partition] = broker_id
                 self._partitions_replica[partition] = replica_broker_id
+
+                if len(self._partitions) > 4:
+                    start, end, part_to_move = self.get_range_index_to_stay_on_part(partition)
+                    message = {
+                        "type": "MOVE_PARTITION_DATA",
+                        "partition": part_to_move,
+                        "start_index_keep": start,
+                        "end_index_keep": end,
+                        "new_broker_address": self.addresses[broker_id]
+                    }
+                    the_other_broker_id = self._partitions[part_to_move]
+                    the_other_broker_address = self.addresses[the_other_broker_id]
+                    self._logger.info(f"Sending message {message} to other broker {the_other_broker_id}")
+                    await self.send_message_to_broker(
+                        the_other_broker_address[0],
+                        the_other_broker_address[1], 
+                        message
+                    )
 
             else:
                 addr = writer.get_extra_info("peername")
