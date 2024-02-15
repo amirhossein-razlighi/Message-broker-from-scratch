@@ -104,6 +104,7 @@ class Broker:
     def _push(self, json_dict):
         self._logger.info(f"Received PUSH message {json_dict}")
         print(f"Received PUSH message {json_dict}")
+        push_request_metrics.inc()
         part_no = int(json_dict["part_no"])
         if part_no not in self._pqueues:
             self._logger.error(f"Invalid part_no {part_no}")
