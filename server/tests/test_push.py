@@ -50,6 +50,7 @@ class TestPush(unittest.TestCase):
 
     def test_push(self):
         sleep(15)        
+        print("Testing push")
         host = "0.0.0.0"
         port = 8001
         global client_socket
