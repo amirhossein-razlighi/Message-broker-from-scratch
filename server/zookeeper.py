@@ -175,12 +175,47 @@ class ZooKeeper(Broker):
         )
         health_check_thread.start()
 
+    def get_hashed_partitions(self):
+        hasher = hashlib.sha256()
+
+        hashed_part_list = []
+        hash_to_part = {}
+        for part in self._partitions:
+            hasher.update(str(part).encode("utf-8"))
+            hashed_part = int.from_bytes(hasher.digest(), byteorder="big") % 360
+            hash_to_part[hashed_part] = part
+        
+        hashed_part_list.sort()
+        return hashed_part_list, hash_to_part
+
     def hash_message_key(self, message_key):
         hasher = hashlib.sha256()
         hasher.update(message_key.encode("utf-8"))
-        hashed_value = int.from_bytes(hasher.digest(), byteorder="big")
+        hashed_value = int.from_bytes(hasher.digest(), byteorder="big") % 360
+
+        hashed_part_list, hash_to_part = self.get_hashed_partitions
+
+        dist = 361
+        for x in hashed_part_list:
+            if x >= hashed_value and x - hashed_value < dist:
+                dist = x - hashed_value
+                part_no = hash_to_part[x]
+        
+        if dist > 360:
+            min_hash = hashed_part_list[0]
+            part_no = hash_to_part[min_hash]
+
+
         part_no = hashed_value % len(self._partitions) + 1
         return part_no
+    
+    def get_range_index_to_be_moved(self, new_part):
+        hashed_part_list, hash_to_part = self.get_hashed_partitions
+        hasher = hashlib.sha256()
+        hasher.update(str(new_part).encode("utf-8"))
+        hashed_new_part = int.from_bytes(hasher.digest(), byteorder="big") % 360
+        
+
 
     def _push(self, json_dict):
         part_no = self.hash_message_key(json_dict["key"])

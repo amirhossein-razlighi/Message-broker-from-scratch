@@ -103,6 +103,7 @@ class Broker:
 
     def _push(self, json_dict):
         self._logger.info(f"Received PUSH message {json_dict}")
+        push_request_metrics.inc()
         print(f"Received PUSH message {json_dict}")
         part_no = int(json_dict["part_no"])
         if part_no not in self._pqueues:
@@ -262,6 +263,7 @@ class Broker:
 
     async def gen_metrics(self):
         self._logger.info(f"inside gen_metrics")
+        response_200_metrics.inc()
         registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(registry)
         data = generate_latest(registry)
