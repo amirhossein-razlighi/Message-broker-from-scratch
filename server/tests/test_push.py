@@ -49,9 +49,7 @@ class TestPush(unittest.TestCase):
         sleep(time)
 
     def test_push(self):
-        assert 1 == 1
-        return
-        
+        sleep(15)        
         host = "0.0.0.0"
         port = 8001
         global client_socket

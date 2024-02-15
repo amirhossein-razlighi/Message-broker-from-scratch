@@ -75,9 +75,7 @@ class TestPushPull(unittest.TestCase):
         sleep(time)
 
     def test_push_pull(self):
-        assert 2 == 2
-        return
-        
+        sleep(15)
         host = "0.0.0.0"
         port = 8001
         global client_socket
