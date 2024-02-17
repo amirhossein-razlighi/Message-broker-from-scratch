@@ -61,3 +61,47 @@ cd client
 mvn clean install
 java -jar target/client-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
+
+## Contribution
+Explaining the current structure of the project is as follows:
+```
+.
+-- .github/
+---- workflows/
+------ deploy.yml
+------ integration.yml
+
+-- client/
+---- src/
+------ main/
+-------- java/
+---------- com/
+------------ example/
+-------------- Client.java
+-------------- Client.class
+---- target/
+---- tests/ # Unit tests for the client
+---- Dockerfile
+---- pom.xml # Maven configuration file for Java 
+---- client.py  # Python version of the client
+
+-- prometheus/
+---- prometheus.yml # Prometheus configuration file
+---- rules.yml # Prometheus rules file
+
+-- server/
+---- tests/ # Unit tests for the server
+---- broker.py # Python version of the broker
+---- zookeeper.py # Python version of the zookeeper
+---- Dockerfile.broker
+---- Dockerfile.zookeeper
+---- metrics.py # Prometheus exporter for the server
+---- requirements.txt # Required packages for the server
+---- status,py # Enum for the status responses of the server
+---- pqueue.py # Priority queue implementation for the server
+
+-- build.sh # Bash script for building the docker images
+-- build.bat # Batch script for building the docker images
+-- docker-compose.yml # Docker compose file for running the project
+-- README.md
+-- requirements.txt # Required packages for the client and server in one file
