@@ -1,54 +1,62 @@
-# System_Design_Project
-The final project for "System Analysis and Design" Course at CE department, Sharif University
+# System_Design_Project (Message Broker - Kafka)
+The final project for "System Analysis and Design" Course at CE department, Sharif University. This project is a simple implementation of a message broker using Kafka. The project is implemented in Python and Java. The server is implemented in Python and the client is implemented in both Python and Java. The project also includes CI/CD pipeline using Docker and Docker-compose. We also wrote different unit tests for both client and server that will be explained in the following sections.
 
-## Running the project
-```python
-# run server
-cd server
-python3 broker.py --http_port 8000 --socket_port 8001 --host 127.0.0.1
+## Building docker images
+```bash
+sudo sh build.sh # or you can use build.bat for windows
 ```
-```python
-# run client
-!cd client
-python3 client.py
-```
-## Running Unit Tests
-```python
-!cd server & cd tests
-python3 test_x.py # write the name of the test file
-```
-## Docker compose usage
+This command will create and/or update the docker images named as follows: `server_app:latest`, `zookeeper_app:latest`, `client_app:latest`.
 
-```python
+# Running the project
+```bash
+sudo docker compose -p "sad" up -d
+```
+This command will run the project using docker-compose. This will make (as default, you can change the configuration in compose file) 3 brokers, 1 zookeeper and 2 clients. Also it will configure Prometheus and wrote custom exporters and also used node_exporter to monitor the system and report them using grafana. If you want to only run the project without monitoring, you can use the following command:
+```bash
+sudo docker compose -p "sad" up -d zookeepers brokers clients
+```
+
+## Building Specific Docker Images
+You can build the images separately using the following commands:
+```bash
 # create broker image
 cd server
 sudo docker build -t server_app:latest -f Dockerfile.broker .
 ```
 
-```python
+```bash
 # create zookeeper image
 cd server
 sudo docker build -t zookeeper_app:latest -f Dockerfile.zookeeper .
 ```
 
-```python
+```bash
 # create client image
 cd client
 sudo docker build . -t client_app:latest
 ```
-```python
-# run the project
-sudo docker compose -p "sad" up -d
+
+## Running Locally with python
+You can run the project locally without docker (although it is not recommended) using the following commands:
+
+```bash
+cd server
+python zookeeper.py --http_port 7500 --socket_port 8000 --ping_port 8888 --host "localhost"
 ```
 
-## Running Client
-```python
-# Python
+```bash
+cd server
+python broker.py --http_port 7500 --socket_port 8000 --ping_port 8888 --host "localhost"
+```
+
+```bash
+# Python version
 cd client
 python client.py
 ```
-```java
-// Java
+Or you can run the Java version of the client using the following commands:
+```bash
+# Java version
 cd client
 mvn clean install
 java -jar target/client-1.0-SNAPSHOT-jar-with-dependencies.jar
